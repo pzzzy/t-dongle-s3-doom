@@ -20,12 +20,16 @@
 #if USE_MEMORY_WAD
 #include "config.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "m_misc.h"
 #include "w_file.h"
 #include "z_zone.h"
 #include "w_wad.h"
+#if defined(ESP_PLATFORM)
+#include "esp_partition.h"
+#endif
 #if PICO_BUILD
 #include "pico.h"
 #include "pico/binary_info.h"
@@ -50,16 +54,23 @@ bi_decl(bi_program_feature(ADDR_FNAME));
 #if !USE_WHD
 #error no longer supported
 #else
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
 #include "tiny.whd.h"
 #define wad_map_base tiny_whd
+#endif
+#if defined(ESP_PLATFORM)
+static const uint8_t *esp_wad_map;
+static esp_partition_mmap_handle_t esp_wad_mmap_handle;
+// Static initializers require a constant expression.  The actual flash mapping
+// is installed on first open, before any WHD decoder can dereference it.
+#define wad_map_base NULL
 #endif
 const uint8_t *whd_map_base = wad_map_base;
 #endif
 
 extern const wad_file_class_t memory_wad_file;
 
-static const wad_file_t fileo = {
+static wad_file_t fileo = {
         .file_class = &memory_wad_file,
         .length = 0, // seemingly unused
         .mapped = wad_map_base,
@@ -68,6 +79,22 @@ static const wad_file_t fileo = {
 
 static wad_file_t *W_Memory_OpenFile(const char *path)
 {
+#if defined(ESP_PLATFORM)
+    if (!esp_wad_map) {
+        const esp_partition_t *part = esp_partition_find_first(
+                ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT, "storage");
+        if (!part || esp_partition_mmap(part, 0, part->size, ESP_PARTITION_MMAP_DATA,
+                                        (const void **)&esp_wad_map,
+                                        &esp_wad_mmap_handle) != ESP_OK) {
+            panic("Cannot map WHD storage partition");
+        }
+        fileo.mapped = esp_wad_map;
+        fileo.length = part->size;
+        whd_map_base = esp_wad_map;
+        printf("WHD: mapped %u bytes from flash partition at %p\n",
+               (unsigned)fileo.length, fileo.mapped);
+    }
+#endif
 #if !USE_WHD
     if (fileo.mapped[0] != 'I' || fileo.mapped[1] != 'W' || fileo.mapped[2] != 'A' || fileo.mapped[3] != 'D')
         panic("NO WAD");

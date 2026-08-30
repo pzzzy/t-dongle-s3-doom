@@ -29,6 +29,16 @@ HTIC*.pcx
 HEXEN*.pcx
 STRIFE*.pcx
 /build*
+/esp-idf/build*/
+/esp-idf/build-pass*.log
+/esp-idf/managed_components/
+/esp-idf/sdkconfig
+/esp-idf/sdkconfig.*.generated
+/esp-idf/sdkconfig.usb-host
+/outputs/
+*.pack
+*.zip
+__pycache__/
 
 # These are the default patterns globally ignored by Subversion:
 *.o

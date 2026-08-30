@@ -25,9 +25,13 @@
 
 // Screen width and height.
 
+#ifndef SCREENWIDTH
 #define SCREENWIDTH  320
+#endif
+#ifndef SCREENHEIGHT
 #define SCREENHEIGHT 200
-#if DOOM_TINY
+#endif
+#if DOOM_TINY && !defined(MAIN_VIEWHEIGHT)
 #define MAIN_VIEWHEIGHT (SCREENHEIGHT - 32 /* ST_HEIGHT */)
 #endif
 
@@ -125,6 +129,9 @@ enum {
 
 extern uint8_t next_video_type;
 extern uint8_t next_frame_index; // next frame_index to be picked up by the diplsau
+#if defined(ESP_PLATFORM)
+extern uint8_t (*status_buffer)[320 * 32];
+#endif
 extern uint8_t next_overlay_index;
 #if !DEMO1_ONLY
 extern uint8_t *next_video_scroll;

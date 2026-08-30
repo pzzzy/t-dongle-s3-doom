@@ -134,6 +134,105 @@ HUlib_drawTextLine
     }
 }
 
+#if defined(ESP_PLATFORM)
+// The original renderer intentionally stops at SCREENWIDTH.  That is correct
+// at 320 pixels, but clips several stock pickup messages on the 160-pixel
+// T-Dongle panel.  Keep messages that fit byte-for-byte identical and wrap
+// only overflowing scrolling-status text at a whole-word boundary.
+static int HUlib_charWidth(hu_textline_t *l, int index)
+{
+    unsigned char c = toupper((unsigned char) l->l[index]);
+
+    if (c != ' ' && c >= l->sc && c <= '_')
+        return vpatch_width(resolve_vpatch_handle(
+                    vpatch_n(l->f, c - l->sc)));
+
+    return 4;
+}
+
+static int HUlib_textWidth(hu_textline_t *l, int start, int end)
+{
+    int width = 0;
+
+    for (int i = start; i < end; ++i)
+        width += HUlib_charWidth(l, i);
+
+    return width;
+}
+
+static void HUlib_drawTextSpan(hu_textline_t *l, int start, int end, int y)
+{
+    int x = l->x;
+
+    for (int i = start; i < end; ++i)
+    {
+        unsigned char c = toupper((unsigned char) l->l[i]);
+        int width = HUlib_charWidth(l, i);
+
+        if (x + width > SCREENWIDTH)
+            break;
+
+        if (c != ' ' && c >= l->sc && c <= '_')
+            V_DrawPatchDirect(x, y, vpatch_n(l->f, c - l->sc));
+
+        x += width;
+    }
+}
+
+static void HUlib_drawTextLineWrapped(hu_textline_t *l)
+{
+    const int available = SCREENWIDTH - l->x;
+    const int font_height = vpatch_height(resolve_vpatch_handle(
+                vpatch_n(l->f, 0)));
+    const int line_height = font_height + 1;
+    // Notifications are composed in the complete engine viewport; CPU1 fits
+    // that page above the separately composed physical status bar.
+    const int message_bottom = MAIN_VIEWHEIGHT;
+    int start = 0;
+    int y = l->y;
+
+    if (HUlib_textWidth(l, 0, l->len) <= available)
+    {
+        HUlib_drawTextLine(l, false);
+        return;
+    }
+
+    while (start < l->len && y + font_height <= message_bottom)
+    {
+        int width = 0;
+        int last_space = -1;
+        int end = start;
+
+        while (end < l->len)
+        {
+            int char_width = HUlib_charWidth(l, end);
+
+            if (width + char_width > available)
+                break;
+
+            width += char_width;
+            if (l->l[end] == ' ')
+                last_space = end;
+            ++end;
+        }
+
+        if (end < l->len)
+        {
+            if (last_space >= start)
+                end = last_space;
+            else if (end == start)
+                ++end;
+        }
+
+        HUlib_drawTextSpan(l, start, end, y);
+        start = end;
+        while (start < l->len && l->l[start] == ' ')
+            ++start;
+        y += line_height;
+    }
+}
+#endif
+
 
 // sorta called by HU_Erase and just better darn get things straight
 void HUlib_eraseTextLine(hu_textline_t* l)
@@ -243,7 +342,11 @@ void HUlib_drawSText(hu_stext_t* s)
 	l = &s->l[idx];
 
 	// need a decision made here on whether to skip the draw
+#if defined(ESP_PLATFORM)
+	HUlib_drawTextLineWrapped(l);
+#else
 	HUlib_drawTextLine(l, false); // no cursor, please
+#endif
     }
 
 }
@@ -349,4 +452,3 @@ void HUlib_eraseIText(hu_itext_t* it)
     HUlib_eraseTextLine(&it->l);
     it->laston = *it->on;
 }
-

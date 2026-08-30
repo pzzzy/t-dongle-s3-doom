@@ -25,6 +25,10 @@
 
 #include "doomstat.h"
 
+#ifdef ESP_PLATFORM
+#include "esp_fidget.h"
+#endif
+
 
 int	leveltime;
 
@@ -176,6 +180,10 @@ void P_Ticker (void)
     {
 	return;
     }
+
+#ifdef ESP_PLATFORM
+    esp_fidget_level_ticker();
+#endif
     
 		
     for (i=0 ; i<MAXPLAYERS ; i++)

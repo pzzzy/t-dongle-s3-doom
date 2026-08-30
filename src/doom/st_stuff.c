@@ -1350,6 +1350,14 @@ ST_Responder (event_t* ev)
                 plyr->message = DEH_String(STSTR_MUS);
                 cht_GetParam(&cheat_mus, buf);
 
+#if defined(ESP_PLATFORM)
+                // This profile intentionally omits every music lump. Keep the
+                // classic IDMUS sequence available without letting vanilla's
+                // required-lump lookup turn a harmless cheat into a reboot.
+                (void)musnum;
+                plyr->message = "MUSIC DISABLED";
+#else
+
                 // Note: The original v1.9 had a bug that tried to play back
                 // the Doom II music regardless of gamemode.  This was fixed
                 // in the Ultimate Doom executable so that it would work for
@@ -1371,6 +1379,7 @@ ST_Responder (event_t* ev)
                     else
                         S_ChangeMusic(musnum, 1);
                 }
+#endif
             } else if ((logical_gamemission == doom
                         && cht_CheckCheat(&cheat_noclip, ev->data2))
                        || (logical_gamemission != doom

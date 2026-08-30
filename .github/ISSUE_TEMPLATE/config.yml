@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and usage questions
+    url: https://github.com/pzzzy/t-dongle-s3-doom/discussions
+    about: Ask the community before filing a defect.
+  - name: Private security report
+    url: https://github.com/pzzzy/t-dongle-s3-doom/security/advisories/new
+    about: Report vulnerabilities privately.

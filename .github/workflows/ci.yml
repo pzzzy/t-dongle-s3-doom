@@ -1,0 +1,64 @@
+name: ESP-IDF build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tooling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate Python tooling
+        run: python3 -m py_compile tools/*.py
+      - name: Validate embedded controller JavaScript
+        run: |
+          awk '/<script>/{on=1;next}/<\/script>/{on=0}on' \
+            esp-idf/main/web/index.html > /tmp/tdongle-ui.js
+          node --check /tmp/tdongle-ui.js
+
+  firmware:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.3.5
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Build ESP32-S3 firmware
+        working-directory: esp-idf
+        run: idf.py build
+
+      - name: Enforce release partition limits
+        run: |
+          test "$(stat -c %s esp-idf/build/tdongle_doom.bin)" -le $((0x110000))
+          test "$(stat -c %s esp-idf/build/bootloader/bootloader.bin)" -le $((0x8000))
+
+      - name: Upload firmware-only artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tdongle-doom-firmware-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            esp-idf/build/bootloader/bootloader.bin
+            esp-idf/build/partition_table/partition-table.bin
+            esp-idf/build/tdongle_doom.bin

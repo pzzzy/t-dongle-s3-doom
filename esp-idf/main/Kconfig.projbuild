@@ -1,0 +1,31 @@
+menu "T-Dongle DOOM hardware modes"
+
+config TD_USB_HOST
+    bool "Enable native USB host keyboard controls"
+    default n
+    help
+        Switch GPIO19/GPIO20 to USB-OTG host mode and accept boot-protocol
+        keyboards. This disconnects USB Serial/JTAG at runtime. Use only with
+        a current-limited externally powered host adapter; the T-Dongle-S3
+        cannot safely source keyboard VBUS by itself.
+
+config TD_AUDIO_PDM
+    bool "Enable eight-channel PDM sound-effects output"
+    depends on !TD_USB_HOST
+    default n
+    help
+        Mix the ADPCM sound effects already stored in the WHD image and send
+        22.05 kHz mono audio through the ESP32-S3 PCM-to-PDM converter. GPIO43
+        is PDM clock and GPIO44 is PDM data on the Qwiic connector. The data
+        signal requires an external low-pass filter and audio amplifier.
+
+config TD_WEB_AUDIO
+    bool "Enable synchronized browser sound and music events"
+    depends on !TD_AUDIO_PDM
+    default y
+    help
+        Preserve DOOM's native eight-channel sound semantics and music state,
+        but send compact events to the Wi-Fi control deck for Web Audio
+        playback. The renderer never streams or mixes PCM on the ESP32.
+
+endmenu

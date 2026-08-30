@@ -1,0 +1,33 @@
+name: Feature proposal
+description: Propose a focused improvement to the ESP32-S3 port
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or experience to improve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Embedded cost and alternatives
+      description: Consider RAM, flash, 35 Hz timing, LCD bandwidth, sockets, and input safety.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: This does not require redistributing commercial game data.
+          required: true
+        - label: I searched existing issues and discussions.
+          required: true

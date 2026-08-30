@@ -21,7 +21,7 @@
 #ifndef __I_SWAP__
 #define __I_SWAP__
 
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
 #include "SDL_endian.h"
 #else
 #define SDL_SwapLE16(x) (x)
@@ -51,4 +51,3 @@
 #endif
 
 #endif
-

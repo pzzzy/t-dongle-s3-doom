@@ -346,7 +346,14 @@ boolean D_Display (void)
 #endif
 
 #if PICO_DOOM
+#if NO_USE_WIPE
+    // The ESP32-S3 ST7735 backend has no scanline callback to advance the
+    // PicoDoom wipe state.  The no-wipe build must therefore never start the
+    // RP2040 scanout-driven transition state machine.
+    pd_end_frame(false);
+#else
     pd_end_frame(wipe);
+#endif
 #else
 
     // menus go directly to the screen
@@ -2125,4 +2132,3 @@ void D_DoomMain (void)
 
     D_DoomLoop ();  // never returns
 }
-

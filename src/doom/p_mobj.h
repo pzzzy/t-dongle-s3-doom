@@ -413,7 +413,7 @@ static inline angle_t mobj_angle(mobj_t *mobj) {
         return mobj_full(mobj)->angle;
     }
 }
-#if PICO_BUILD && !DEBUG_MOBJ
+#if PICO_BUILD && !DEBUG_MOBJ && !defined(ESP_PLATFORM)
 #include "pico.h"
 #include <assert.h>
 #if PICO_ON_DEVICE

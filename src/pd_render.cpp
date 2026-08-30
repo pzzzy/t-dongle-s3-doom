@@ -67,7 +67,7 @@ extern uint8_t restart_song_state;
 //CU_SELECT_DEBUG_PINS(full_render)
 //CU_SELECT_DEBUG_PINS(start_end)
 
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
 #include "../whd_gen/statsomizer.h"
 
 std::set<int> textures, patches;
@@ -157,8 +157,10 @@ const int16_t fuzzoffset[FUZZTABLE] =
 #define span_interp interp1_hw
 #endif
 
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
 #define DUMP_SORTING 1
+#else
+#define DUMP_SORTING 0
 #endif
 // seems to work
 typedef unsigned int uint;
@@ -167,7 +169,11 @@ int pd_frame;
 int pd_flag;
 fixed_t pd_scale;
 
+#if defined(ESP_PLATFORM)
+extern uint8_t (*frame_buffer)[SCREENWIDTH * MAIN_VIEWHEIGHT];
+#else
 extern uint8_t __aligned(4) frame_buffer[2][SCREENWIDTH * MAIN_VIEWHEIGHT];
+#endif
 static uint8_t __aligned(4) visplane_bit[(SCREENWIDTH / 8) * MAIN_VIEWHEIGHT]; // this is also used for patch decoding in core1 (since flats are done by then)
 static int8_t flatnum_first[256];
 
@@ -199,6 +205,12 @@ static_assert(TEXTUREMID_PLANE == 0x3ffff, "");
 #define DDA_MAX 0xfffff
 #define DDA_CLAMP(x) (((uint)((x)<<12))>>12)
 #define DDA_UP_SHIFT(x) ((x) << DDA_SHIFT)
+
+// The 24-bit scale field has four spare bits above the 20-bit DDA value.
+// Keep psprite identity separate from its texture step: player weapons must
+// always composite in front of world geometry, but on compact viewports their
+// true inverse scale is not necessarily the old 1:1 (zero) shorthand.
+#define PDCOL_PSPRITE_FLAG (DDA_MAX + 1u)
 
 bool next_frame_pause;
 
@@ -280,7 +292,21 @@ static void SafeUpdateSound() {
 }
 
 static bool column_is_psprite(const pd_column &c) {
-    return c.scale == 0;
+    return c.scale & PDCOL_PSPRITE_FLAG;
+}
+
+static uint32_t column_iscale(const pd_column &c) {
+    return c.scale & DDA_MAX;
+}
+
+static bool column_is_in_front(const pd_column &candidate,
+                               const pd_column &resident) {
+    // A psprite is a screen-space overlay and always wins against world
+    // geometry. Preserve insertion order between two psprites, matching the
+    // old equal-zero-scale behavior.
+    if (column_is_psprite(candidate) != column_is_psprite(resident))
+        return column_is_psprite(candidate);
+    return column_iscale(candidate) < column_iscale(resident);
 }
 
 static bool column_is_nil(const pd_column &c) {
@@ -317,7 +343,11 @@ const char *type_name(pd_column column) {
 #endif
 }
 
-#if !PICO_RP2350
+#if defined(ESP_PLATFORM)
+// A 160-column target generates far fewer deferred columns than the original
+// 320-pixel Pico build. Keep a generous 2K ceiling while reclaiming 18.7 KiB.
+#define RENDER_COL_MAX 2048
+#elif !PICO_RP2350
 #define RENDER_COL_MAX 3600
 #else
 #define RENDER_COL_MAX 7200
@@ -432,7 +462,7 @@ static void push_down_x_guts(int x, int16_t new_index) {
         }
         // there is some overlap
         assert(existing_col.yl <= new_col.yh);
-        if (new_col.scale < existing_col.scale) {
+        if (column_is_in_front(new_col, existing_col)) {
             // new column is in front of existing column
             const auto &cf = new_col;
             auto &cb = existing_col;
@@ -629,7 +659,7 @@ static void push_down_x_fuzzy(int x, int16_t new_index) {
         }
         // there is some overlap
         assert(existing_col.yl <= new_col.yh);
-        if (new_col.scale < existing_col.scale) {
+        if (column_is_in_front(new_col, existing_col)) {
             // fuzzy column is in front of existing column
             const auto &cf = new_col;
             auto &cb = existing_col;
@@ -768,13 +798,13 @@ void pd_begin_frame() {
 //        render_frame_index ^= 1;
     }
     render_frame_buffer = nullptr;
-#if 0 && !PICO_ON_DEVICE
+#if 0 && !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
     printf("BEGIN FRAME %d rfb %p\n", render_frame_index, render_frame_buffer);
 #endif
     sem_release(&core1_wake);
 
     reset_framedrawables();
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
     textures.clear();
     patches.clear();
 #endif
@@ -827,6 +857,9 @@ void pd_init() {
     static_assert(SRAM_SCRATCH_X_BASE - 0xc00 >= SHORTPTR_BASE + 0x4000, ""); // avoid potential heap locations
     vpatchlists = (vpatchlists_t *)(SRAM_SCRATCH_X_BASE - 0xc00);
 #endif
+#elif defined(ESP_PLATFORM)
+    static vpatchlists_t esp_vpatchlists;
+    vpatchlists = &esp_vpatchlists;
 #else
     vpatchlists = (vpatchlists_t*)malloc(sizeof(vpatchlists_t));
 #endif
@@ -902,7 +935,7 @@ void pd_add_column(pd_column_type type) {
     render_cols[rc_index].fd_num = dc_source.fd_num;
     render_cols[rc_index].col_hi = TO_COL_HI(dc_source.col);
     render_cols[rc_index].col_lo = TO_COL_LO(dc_source.col);
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
     if (dc_source.real_id < 0) {
         // patch
         patches.insert(-dc_source.real_id);
@@ -979,7 +1012,8 @@ void pd_add_masked_columns(uint8_t *ys, int seg_count) {
     assert(render_cols[rc_index].yl >= 0 && render_cols[rc_index].yl < MAIN_VIEWHEIGHT && render_cols[rc_index].yh >= 0 && render_cols[rc_index].yh < MAIN_VIEWHEIGHT);
 
     assert(ys[1] >= ys[0]);
-    render_cols[rc_index].scale = pd_flag & 2 ? 0 : iscale;
+    render_cols[rc_index].scale = iscale |
+                                  ((pd_flag & 2) ? PDCOL_PSPRITE_FLAG : 0);
     render_cols[rc_index].colormap_index = dc_colormap_index;
 #if !FORCE_ISCALE
     if (type != PDCOL_SKY) {
@@ -1003,7 +1037,7 @@ void pd_add_masked_columns(uint8_t *ys, int seg_count) {
     render_cols[rc_index].fd_num = dc_source.fd_num;
     render_cols[rc_index].col_hi = TO_COL_HI(dc_source.col);
     render_cols[rc_index].col_lo = TO_COL_LO(dc_source.col);
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
     if (dc_source.real_id < 0) {
         // patch
         patches.insert(-dc_source.real_id);
@@ -1759,7 +1793,7 @@ static void get_patch_decoder(int patch_num, patch_decode_info* pdis, int pdi_po
             }
             assert(pos <= patch_decoder_circular_buf + PATCH_DECODER_CIRCULAR_BUFFER_SIZE - 1);
             header->size = pos + PATCH_HASH_ENTRY_HEADER_HWORDS - pdi.decoder;
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
             patch_decoder_size.record(header->size);
 #endif
             patch_decoder_circular_buf_write_pos += header->size;
@@ -1834,8 +1868,7 @@ static void draw_patch_columns(int patch_num, int patch_head, int16_t *col_heads
         // we can see the last pixel we've used, which means, as a bonus, we won't decode all of a column when we only
         // use the top
         fixed_t texturemid = UP_SHIFT(c.texturemid);
-        fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-        if (!fracstep) fracstep = 0x10000;
+        fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
         fixed_t start = (texturemid + (c.yl - centery) * fracstep) >> FRACBITS;
         fixed_t end = (texturemid + (c.yh - centery) * fracstep) >> FRACBITS;
         if (start < -1) {
@@ -1917,8 +1950,7 @@ static void draw_patch_columns(int patch_num, int patch_head, int16_t *col_heads
                     uint8_t *p = render_frame_buffer + __mul_instruction(c.yl, SCREENWIDTH) + c.x +
                                  ((i & 0x8000u) >> 7u);
                     assert (c.texturemid != TEXTUREMID_PLANE);
-                    fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-                    if (!fracstep) fracstep = 0x10000;
+                    fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
                     fixed_t frac = UP_SHIFT(c.texturemid) + (c.yl - centery) * fracstep;
                     col_render(p, c.yh - c.yl, pixels, frac, fracstep, dc_colormap);
                     i = c.next;
@@ -1932,8 +1964,7 @@ static void draw_patch_columns(int patch_num, int patch_head, int16_t *col_heads
                     should_be_const lighttable_t *dc_colormap = colormaps + 256 * c.colormap_index;
 #endif
                     assert (c.texturemid != TEXTUREMID_PLANE);
-                    fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-                    if (!fracstep) fracstep = 0x10000;
+                    fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
                     fixed_t frac = UP_SHIFT(c.texturemid) + (c.yl - centery) * fracstep;
 //                    if (get_core_num()) {
 //                        for(int yy=c.yl;yy<=c.yh;yy++) {
@@ -1977,8 +2008,7 @@ static void draw_composite_columns(int texture_num, int tex_head) {
         // we can see the last pixel we've used, which means, as a bonus, we won't decode all of a column when we only
         // use the top
         fixed_t texturemid = UP_SHIFT(c.texturemid);
-        fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-        if (!fracstep) fracstep = 0x10000;
+        fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
         fixed_t start = (texturemid + (c.yl - centery) * fracstep) >> FRACBITS;
         fixed_t end = (texturemid + (c.yh - centery) * fracstep) >> FRACBITS;
         if (start < -1 || end > 128) {
@@ -2227,8 +2257,7 @@ static void draw_composite_columns(int texture_num, int tex_head) {
                                 uint8_t *p = render_frame_buffer + __mul_instruction(c.yl, SCREENWIDTH) + c.x +
                                              ((i & 0x8000u) >> 7u);
                                 assert (c.texturemid != TEXTUREMID_PLANE);
-                                fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-                                if (!fracstep) fracstep = 0x10000;
+                                fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
                                 fixed_t frac = UP_SHIFT(c.texturemid) + (c.yl - centery) * fracstep;
                                 col_render(p, c.yh - c.yl, pixels, frac, fracstep, dc_colormap);
                                 i = c.next;
@@ -2242,8 +2271,7 @@ static void draw_composite_columns(int texture_num, int tex_head) {
                                 should_be_const lighttable_t *dc_colormap = colormaps + 256 * c.colormap_index;
     #endif
                                 assert (c.texturemid != TEXTUREMID_PLANE);
-                                fixed_t fracstep = DDA_UP_SHIFT(c.scale);
-                                if (!fracstep) fracstep = 0x10000;
+                                fixed_t fracstep = DDA_UP_SHIFT(column_iscale(c));
                                 fixed_t frac = UP_SHIFT(c.texturemid) + (c.yl - centery) * fracstep;
                                 col_render(p, c.yh - c.yl, pixels, frac, fracstep, dc_colormap);
                                 i = c.next;
@@ -2456,7 +2484,54 @@ static void draw_splash(int patch_num, int top, int bottom, uint8_t *dest, int s
 
 extern "C" int M_Random();
 
+#if defined(ESP_PLATFORM)
+// TITLEPIC/CREDIT are 320x200 source patches. Decode selected source columns
+// and rows directly into the physical 160x80 page: no intermediate 64 KB
+// canvas and no filtering cost in the display hot path.
+static void draw_splash_160x80(int patch_num, uint8_t *dest) {
+    constexpr int splash_height = 80;
+    patch_decode_info pdi;
+    get_patch_decoder(patch_num, &pdi);
+    assert(patch_width(pdi.patch) == 320 && patch_height(pdi.patch) == 200);
+    const uint16_t *col_offsets = pdi.col_offsets;
+    const uint8_t *decoder = get_patch_decoder_table(patch_num, pdi.decoder);
+
+    for (int x = 0; x < SCREENWIDTH; ++x) {
+        int source_x = x * 2;
+        uint16_t col_offset = col_offsets[source_x];
+        if (0xff == (col_offset >> 8))
+            col_offset = col_offsets[col_offset & 0xff];
+        th_bit_input bi;
+        if (patch_byte_addressed(pdi.patch))
+            th_bit_input_init(&bi, pdi.patch + pdi.data_index + col_offset);
+        else
+            th_bit_input_init_bit_offset(&bi, pdi.patch + pdi.data_index,
+                                         col_offset);
+
+        uint8_t prev = 0;
+        int out_y = 0;
+        for (int source_y = 0; source_y < 200 && out_y < splash_height;
+             ++source_y) {
+            uint16_t p = th_decode_table_special_16(pdi.decoder, decoder, &bi);
+            if (p < 256) prev = (uint8_t)p;
+            else prev = (uint8_t)(prev + (p & 0xff) - 3);
+            if (source_y == (out_y * 200) / splash_height) {
+                dest[out_y * SCREENWIDTH + x] = prev;
+                ++out_y;
+            }
+        }
+    }
+}
+#endif
+
 void maybe_draw_single_screen(int patch_num) {
+#if defined(ESP_PLATFORM)
+    if (sub_gamestate == 0) {
+        next_video_type = VIDEO_TYPE_SINGLE;
+        draw_splash_160x80(patch_num, frame_buffer[render_frame_index]);
+        sub_gamestate = 2;
+    }
+#else
     if (sub_gamestate == 0) {
         next_video_type = VIDEO_TYPE_SINGLE;
         draw_splash(patch_num, 0, MAIN_VIEWHEIGHT, frame_buffer[render_frame_index]);
@@ -2466,9 +2541,18 @@ void maybe_draw_single_screen(int patch_num) {
                     frame_buffer[render_frame_index^1] + (MAIN_VIEWHEIGHT - 32) * SCREENWIDTH);
         sub_gamestate = 2;
     }
+#endif
 }
 
 void draw_stbar_on_framebuffer(int frame, boolean refresh) {
+#if defined(ESP_PLATFORM)
+    // The physical panel is the 160x80 3-D viewport. Vanilla's 320x32 status
+    // patches live below it in the logical canvas and cannot be represented
+    // without either resampling or corrupting the compact framebuffer.
+    (void)frame;
+    (void)refresh;
+    return;
+#else
     V_BeginPatchList(vpatchlists->framebuffer);
     // we call ST_drawwidgets directly as we don't want to mess with palette stuff (we call this during startup when not initialized)
 //    ST_Drawer(false, refresh);
@@ -2478,6 +2562,7 @@ void draw_stbar_on_framebuffer(int frame, boolean refresh) {
     V_RestoreBuffer();
     V_DrawPatchList(vpatchlists->framebuffer);
     I_VideoBuffer = render_frame_buffer;
+#endif
 }
 
 static void draw_framebuffer_patches_fullscreen() {
@@ -2595,7 +2680,7 @@ static void uh_oh_discard_columns(int render_col_limit) {
 }
 void pd_end_frame(int wipe_start) {
     DEBUG_PINS_SET(start_end, 2);
-#if !PICO_ON_DEVICE
+#if !PICO_ON_DEVICE && !defined(ESP_PLATFORM)
 //    tex_count.record_print(textures.size());
 //    patch_count.record_print(patches.size());
 //    patch_decoder_size.print_summary();
@@ -2761,7 +2846,7 @@ void pd_end_frame(int wipe_start) {
                 for (int j = 0; j < 32; j++) {
                     if (not_fully_covered_cols[i] & (1u << j)) {
                         uint32_t *dest = (uint32_t *) (render_frame_buffer + i * 4 * 32 + j * 4 +
-                                                       not_fully_covered_yl * SCREENHEIGHT);
+                                                       not_fully_covered_yl * SCREENWIDTH);
                         for (int y = not_fully_covered_yl; y <= not_fully_covered_yh; y++, dest += SCREENWIDTH / 4) {
                             *dest = 0;
                         }
@@ -2792,8 +2877,13 @@ void pd_end_frame(int wipe_start) {
         draw_cast_sprite(sprite_lump);
     }
 #endif
+#if defined(ESP_PLATFORM)
+    // ESP port begins single-core for deterministic bring-up. At 160x80 the
+    // work is small; the second core is reserved for the SPI display pipeline.
+#else
     sem_release(&core0_done);
     sem_acquire_blocking(&core1_done);
+#endif
     draw_fuzz_columns();
     DEBUG_PINS_CLR(full_render, 1);
     NetUpdate();
@@ -2803,6 +2893,19 @@ void pd_end_frame(int wipe_start) {
         F_Drawer();
         draw_framebuffer_patches_fullscreen();
     }
+#if defined(ESP_PLATFORM)
+    if (gamestate == GS_LEVEL && !wipestate) {
+        // Compose the authentic 320x32 status bar and live widgets into a
+        // double-buffered logical canvas. CPU1 downsamples it 2:1 into the
+        // panel's bottom 16 rows while presenting the corresponding page.
+        V_BeginPatchList(vpatchlists->framebuffer);
+        ST_Drawer(false, true);
+        V_EndPatchList();
+        V_DrawPatchListToBuffer(vpatchlists->framebuffer,
+                                status_buffer[render_frame_index],
+                                320, 168, 168, 200);
+    }
+#endif
     V_BeginPatchList(vpatchlists->overlays[render_overlay_index]);
     if (!showing_help) {
         was_in_help = false;
@@ -2814,7 +2917,9 @@ void pd_end_frame(int wipe_start) {
                     if (automapactive)
                         AM_Drawer();
                     // goes into overlay set above
+#if !defined(ESP_PLATFORM)
                     ST_Drawer(false, !pre_wipe_state);
+#endif
                     sub_gamestate = 0;
                     next_video_type = VIDEO_TYPE_DOUBLE;
                 }
@@ -2922,7 +3027,15 @@ void pd_end_frame(int wipe_start) {
     // todo this might not be right
     // advance demo is set on the last frame of a demo, pre_wipe_state is set for last frame of gameplay in other state changes (by g_game)
     // inhelpscreens has skull which is in an iconvenient place
-    bool render_menu_etc_to_fb = !advancedemo && !pre_wipe_state && next_video_type == VIDEO_TYPE_DOUBLE && !inhelpscreens;
+    const bool compact_menu = M_MenuWantsCompactScale();
+    bool render_menu_etc_to_fb = !advancedemo && !pre_wipe_state &&
+            next_video_type == VIDEO_TYPE_DOUBLE && !inhelpscreens;
+#if defined(ESP_PLATFORM)
+    // Menus need a real framebuffer target even over TITLEPIC/CREDIT because
+    // their vanilla 320x200 coordinates are resampled as a complete layer.
+    if (compact_menu && !pre_wipe_state && !inhelpscreens)
+        render_menu_etc_to_fb = true;
+#endif
     if (render_menu_etc_to_fb) {
         // render menu/hu to framebuffer (otherwise it goes to the overlay)
         V_BeginPatchList(vpatchlists->framebuffer);
@@ -2936,12 +3049,28 @@ void pd_end_frame(int wipe_start) {
         F_CastDrawer(); // just draw the text
     }
 #endif
+    if (render_menu_etc_to_fb && compact_menu) {
+        // Preserve any already-collected HUD text at native coordinates, then
+        // reuse the list solely for the vanilla-coordinate menu layer.
+        V_RestoreBuffer();
+        V_DrawPatchList(vpatchlists->framebuffer);
+        V_BeginPatchList(vpatchlists->framebuffer);
+    }
     M_Drawer();
 
     if (render_menu_etc_to_fb) {
-        // render menu/hu to framebuffer
         V_RestoreBuffer();
-        V_DrawPatchList(vpatchlists->framebuffer);
+#if defined(ESP_PLATFORM)
+        if (compact_menu) {
+            // Uniform 2:1 reduction preserves the artwork's aspect ratio. The
+            // vanilla menus occupy the top 160 logical rows, exactly 80 LCD
+            // rows; the unused bottom of the 200-row canvas is intentionally
+            // cropped.
+            V_DrawPatchListScaled(vpatchlists->framebuffer, I_VideoBuffer,
+                                  SCREENWIDTH, 160, 80, 320, 160);
+        } else
+#endif
+            V_DrawPatchList(vpatchlists->framebuffer);
     }
     if (pre_wipe_state == PRE_WIPE_EXTRA_FRAME_NEEDED) {
         pre_wipe_state = PRE_WIPE_EXTRA_FRAME_DONE;

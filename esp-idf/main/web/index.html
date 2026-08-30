@@ -1,0 +1,271 @@
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090908">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DOOM Deck">
+<meta name="format-detection" content="telephone=no">
+<title>T-Dongle DOOM Control Deck</title>
+<style>
+:root{color-scheme:dark;--ink:#f4ead7;--dim:#9b9387;--red:#db2b22;--amber:#f0a328;--panel:#181614;--line:#403a33}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;background:#090908;color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overscroll-behavior:none}
+body{position:fixed;inset:0;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button,input,select{font:inherit}button{-webkit-appearance:none;appearance:none}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#0000 0 3px,#0003 4px);z-index:9}
+.deck{width:100%;height:100vh;height:100dvh;max-width:920px;margin:auto;padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:8px}
+header{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:7px}
+h1{min-width:0;white-space:nowrap;font:900 clamp(14px,3.5vw,24px)/1 system-ui,sans-serif;letter-spacing:.06em;margin:0}.live{flex:none;display:flex;align-items:center;white-space:nowrap;color:var(--amber);font-size:10px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#67201c}.live.on .dot{background:#56bd58;box-shadow:0 0 12px #56bd58}
+.main{min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(10px,4vw,42px);align-items:center}
+.dpad{position:relative;width:min(42vw,280px);aspect-ratio:1;margin:auto}.btn{min-width:0;min-height:44px;border:1px solid #5b5247;background:linear-gradient(#29251f,#151311);color:var(--ink);box-shadow:inset 0 1px #6c6256,0 4px 0 #050505;border-radius:12px;font:800 12px/1 ui-monospace,monospace;letter-spacing:.06em;touch-action:none;-webkit-touch-callout:none}.btn.active,.btn:active{transform:translateY(3px);box-shadow:inset 0 2px 9px #000,0 1px 0 #000;border-color:var(--amber);filter:brightness(1.18);color:#fff}
+.dpad .btn{position:absolute;width:34%;height:34%;font-size:clamp(18px,5vw,30px)}.up{left:33%;top:0}.down{left:33%;bottom:0}.left{left:0;top:33%}.right{right:0;top:33%}.center{left:33%;top:33%;border-radius:50%;font-size:9px!important;color:var(--dim)}
+.actions{min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;align-content:center}.actions .btn{min-height:clamp(56px,13vh,94px)}.fire{grid-column:2/4;background:radial-gradient(circle at 50% 28%,#eb4937,#7b130e);border-color:#ee5b4d;font-size:clamp(18px,4vw,28px)!important}.use{grid-column:1/2}.run{color:var(--amber)}
+.utility{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.utility .btn{min-height:44px;border-radius:8px;font-size:10px}.weapons{grid-column:1/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.weapons .btn{min-height:44px}
+footer{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;color:var(--dim);font-size:9px;border-top:1px solid var(--line);padding-top:5px}.stats{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.foot-actions{display:grid;grid-auto-flow:column;grid-auto-columns:max-content;align-items:center}.textbtn{min-height:44px;background:none;border:0;border-radius:7px;color:var(--amber);font:inherit;padding:0 9px;touch-action:manipulation}.textbtn:active{background:#2a241c;color:#fff}.textbtn.ready{color:#65d767;text-shadow:0 0 9px #36a238}.textbtn[hidden]{display:none}
+.panel{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:#000c;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));touch-action:pan-y}.panel[hidden]{display:none}.card{width:min(440px,100%);max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border:1px solid #665d51;border-radius:14px;background:#141210;padding:20px;box-shadow:0 18px 70px #000}.card h2{margin:0 0 18px;font:900 20px/1 system-ui}.setting{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:14px 0;color:var(--ink);font-size:12px}.setting small{display:block;color:var(--dim);margin-top:4px}.setting input[type=range]{width:min(48vw,210px);min-height:44px;touch-action:pan-x}.setting input[type=checkbox]{width:26px;height:26px}.setting output{color:var(--amber);min-width:36px;text-align:right}.card .close{width:100%;min-height:48px;margin-top:10px}.cheat-card{width:min(620px,100%)}.cheat-note{color:var(--dim);font-size:11px;line-height:1.45;margin:-8px 0 14px}.cheat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cheat{min-height:50px;padding:7px;font-size:11px}.cheat code{display:block;color:var(--amber);font:9px/1.4 ui-monospace,monospace;margin-top:4px}.cheat-section{margin:16px 0 7px;color:var(--red);font:800 11px/1 system-ui;letter-spacing:.08em}.cheat-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.cheat-row select{min-width:0;min-height:44px;background:#211e1a;color:var(--ink);border:1px solid #5b5247;border-radius:7px;padding:8px;font:11px ui-monospace,monospace}.cheat-result{min-height:17px;margin:12px 0 2px;color:var(--amber);font-size:10px}
+@media(max-width:620px) and (orientation:portrait){.deck{gap:6px}.main{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:end;padding-bottom:2px}.dpad{width:min(46vw,190px);margin:0 auto}.actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%;margin:0}.actions .btn{min-height:56px}.fire{grid-column:1/-1;grid-row:1;min-height:76px!important}.use{grid-column:1;grid-row:2}.run{grid-column:2;grid-row:2}.actions>:nth-child(4){grid-column:1;grid-row:3}.actions>:nth-child(5){grid-column:2;grid-row:3}footer{grid-template-columns:1fr;gap:2px;padding-top:3px}.stats{text-align:center;font-size:8px}.foot-actions{grid-auto-flow:unset;grid-template-columns:repeat(4,minmax(0,1fr));width:100%}.textbtn{min-height:44px;padding:0 3px}.utility{gap:5px}.utility .btn{font-size:9px}.weapons{gap:4px}.weapons .btn{min-height:44px}}
+@media(max-width:350px){h1{font-size:12px;letter-spacing:.03em}.live{font-size:8px}.textbtn{font-size:8px}.cheat-grid{grid-template-columns:1fr}.cheat-row{grid-template-columns:1fr 1fr}.cheat-row .btn{grid-column:1/-1}}
+@media(max-height:500px){.deck{gap:4px;padding-top:max(5px,env(safe-area-inset-top));padding-bottom:max(5px,env(safe-area-inset-bottom))}header{padding-bottom:4px}h1{font-size:13px}.main{gap:14px}.dpad{width:min(46vh,180px)}.actions{gap:6px}.actions .btn{min-height:46px}.utility{gap:4px}.utility .btn{min-height:44px}.weapons .btn{min-height:44px}footer{padding-top:2px}.textbtn{min-height:44px}.card{padding:14px}.card h2{margin-bottom:12px}.cheat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.cheat{min-height:44px}}
+@media(max-height:350px){.dpad{width:min(43vh,145px)}.actions .btn{min-height:40px}.utility .btn{min-height:34px}.weapons .btn{min-height:30px}.textbtn{min-height:30px}}
+</style>
+</head>
+<body>
+<main class="deck">
+  <header><h1>T-DONGLE // DOOM</h1><div id="live" class="live" role="status"><span class="dot"></span><span id="state">LINKING</span></div></header>
+  <section class="main">
+    <div class="dpad">
+      <button class="btn up" data-bit="0" aria-label="Move forward">▲</button><button class="btn down" data-bit="1" aria-label="Move backward">▼</button>
+      <button class="btn left" data-bit="2" aria-label="Turn left">◀</button><button class="btn right" data-bit="3" aria-label="Turn right">▶</button>
+      <button class="btn center" data-bit="10" aria-label="Strafe modifier">STRAFE</button>
+    </div>
+    <div class="actions">
+      <button class="btn use" data-bit="5">USE</button><button class="btn fire" data-bit="4">FIRE</button>
+      <button class="btn run" data-bit="6">RUN</button><button class="btn" data-bit="9">MAP</button><button class="btn" data-bit="7">ENTER</button>
+    </div>
+  </section>
+  <section class="utility">
+    <button class="btn" data-bit="8">MENU</button><button class="btn" data-bit="10">STRAFE</button><button class="btn" data-bit="5">OPEN</button><button class="btn" data-bit="4">SHOOT</button>
+    <div class="weapons"><button class="btn" data-bit="11">1</button><button class="btn" data-bit="12">2</button><button class="btn" data-bit="13">3</button><button class="btn" data-bit="14">4</button><button class="btn" data-bit="15">5</button><button class="btn" data-bit="16">6</button><button class="btn" data-bit="17">7</button></div>
+  </section>
+  <footer><span id="stats" class="stats">35 Hz engine · waiting for telemetry</span><span class="foot-actions"><button id="audioToggle" class="textbtn">AUDIO</button><button id="cheats" class="textbtn">CHEATS</button><button id="gear" class="textbtn">SETTINGS</button><button id="full" class="textbtn">FULLSCREEN</button></span></footer>
+</main>
+<section id="cheatsPanel" class="panel" role="dialog" aria-modal="true" aria-labelledby="cheatsTitle" hidden>
+  <div class="card cheat-card">
+    <h2 id="cheatsTitle">CLASSIC DOOM CHEATS</h2>
+    <p class="cheat-note">Injected as authentic keyboard cheat sequences. Toggle cheats retain their original DOOM behavior; cheats are disabled on Nightmare difficulty.</p>
+    <div class="cheat-grid">
+      <button class="btn cheat" data-cheat="iddqd">GOD MODE<code>IDDQD</code></button>
+      <button class="btn cheat" data-cheat="idkfa">ALL + KEYS<code>IDKFA</code></button>
+      <button class="btn cheat" data-cheat="idfa">ALL, NO KEYS<code>IDFA</code></button>
+      <button class="btn cheat" data-cheat="idspispopd">NO CLIPPING<code>IDSPISPOPD</code></button>
+      <button class="btn cheat" data-cheat="idchoppers">CHAINSAW<code>IDCHOPPERS</code></button>
+      <button class="btn cheat" data-cheat="idmypos">POSITION<code>IDMYPOS</code></button>
+      <button class="btn cheat" data-cheat="iddt">MAP REVEAL<code>IDDT · open map first</code></button>
+      <button class="btn cheat" data-cheat="idbehold">POWERUP HELP<code>IDBEHOLD</code></button>
+    </div>
+    <div class="cheat-section">POWERUPS</div>
+    <div class="cheat-grid">
+      <button class="btn cheat" data-cheat="idbeholdv">INVULNERABLE<code>IDBEHOLDV</code></button>
+      <button class="btn cheat" data-cheat="idbeholds">BERSERK<code>IDBEHOLDS</code></button>
+      <button class="btn cheat" data-cheat="idbeholdi">INVISIBILITY<code>IDBEHOLDI</code></button>
+      <button class="btn cheat" data-cheat="idbeholdr">RAD SUIT<code>IDBEHOLDR</code></button>
+      <button class="btn cheat" data-cheat="idbeholda">AREA MAP<code>IDBEHOLDA</code></button>
+      <button class="btn cheat" data-cheat="idbeholdl">LIGHT AMP<code>IDBEHOLDL</code></button>
+    </div>
+    <div class="cheat-section">WARP</div>
+    <div class="cheat-row"><select id="warpEpisode" aria-label="Warp episode"><option value="1">EPISODE 1</option><option value="2">EPISODE 2</option><option value="3">EPISODE 3</option><option value="4">EPISODE 4</option></select><select id="warpMap" aria-label="Warp map"><option value="1">MAP 1</option><option value="2">MAP 2</option><option value="3">MAP 3</option><option value="4">MAP 4</option><option value="5">MAP 5</option><option value="6">MAP 6</option><option value="7">MAP 7</option><option value="8">MAP 8</option><option value="9">MAP 9</option></select><button id="warp" class="btn">WARP</button></div>
+    <div class="cheat-section">MUSIC SELECTOR · LIVE OPL2 AUDIO</div>
+    <div class="cheat-row"><select id="musicEpisode" aria-label="Music episode"><option value="1">EPISODE 1</option><option value="2">EPISODE 2</option><option value="3">EPISODE 3</option><option value="4">EPISODE 4</option></select><select id="musicMap" aria-label="Music map"><option value="1">TRACK 1</option><option value="2">TRACK 2</option><option value="3">TRACK 3</option><option value="4">TRACK 4</option><option value="5">TRACK 5</option><option value="6">TRACK 6</option><option value="7">TRACK 7</option><option value="8">TRACK 8</option><option value="9">TRACK 9</option></select><button id="music" class="btn">SELECT</button></div>
+    <div id="cheatResult" class="cheat-result" role="status"></div>
+    <button id="closeCheats" class="btn close">RETURN TO GAME</button>
+  </div>
+</section>
+<section id="panel" class="panel" hidden>
+  <div class="card">
+    <h2>CONTROL DECK SETTINGS</h2>
+    <label class="setting"><span>LCD brightness<small>Saved on the dongle</small></span><span><input id="bright" type="range" min="5" max="100" value="100"><output id="brightOut">100%</output></span></label>
+    <label class="setting"><span>Display upside-down<small>180° hardware rotation, saved on the dongle</small></span><input id="rotate" type="checkbox"></label>
+    <label class="setting"><span>Gamepad deadzone<small>Saved in this browser</small></span><span><input id="dead" type="range" min="10" max="70" value="35"><output id="deadOut">35%</output></span></label>
+    <label class="setting"><span>Touch haptics<small>When supported by the controller</small></span><input id="haptic" type="checkbox" checked></label>
+    <label class="setting"><span>Master volume<small>Browser/phone speaker output</small></span><span><input id="masterVol" type="range" min="0" max="100" value="80"><output id="masterOut">80%</output></span></label>
+    <label class="setting"><span>Music volume<small>DMX-compatible OPL2 render</small></span><span><input id="musicVol" type="range" min="0" max="100" value="70"><output id="musicOut">70%</output></span></label>
+    <label class="setting"><span>SFX volume<small>Vanilla positional stereo and pitch</small></span><span><input id="sfxVol" type="range" min="0" max="100" value="100"><output id="sfxOut">100%</output></span></label>
+    <div class="setting"><span>Audio engine<small>Tap any game control to start or resume</small></span><output id="audioState" role="status" aria-live="polite">LOCKED</output></div>
+    <button id="close" class="btn close">RETURN TO GAME</button>
+  </div>
+</section>
+<script>
+	(()=>{
+	  const B=n=>1<<n, AUDIO_URL='/audio.pack?v=webm2', live=document.querySelector('#live'), state=document.querySelector('#state'), stats=document.querySelector('#stats');
+	  let ws, reconnectTimer=0, connectionEpoch=0, unackedSince=0, keyboard=0, touch=0, gamepad=0, last=-1, retry=100, deadzone=.35, haptics=true;
+	  const counts=new Uint8Array(18), pointers=new Map();
+	  class DoomAudio{
+	    constructor(){
+	      this.ctx=null;this.ready=false;this.loading=null;this.muted=false;this.backgrounded=false;this.sfx=[];this.sfxLoads=[];this.pendingChannels=Array(8);this.channels=Array(8);this.music=null;this.musicBuffer=null;this.musicToken=0;this.desiredMusic=null;this.gameMusicVolume=64;
+	      this.button=document.querySelector('#audioToggle');this.label=document.querySelector('#audioState');
+	      const get=(key,fallback)=>{try{return +(localStorage.getItem(key)??fallback)}catch{return +fallback}};
+	      this.masterValue=get('doomMaster',80)/100;this.musicValue=get('doomMusic',70)/100;this.sfxValue=get('doomSfx',100)/100;
+	      this.masterSlider=document.querySelector('#masterVol');this.musicSlider=document.querySelector('#musicVol');this.sfxSlider=document.querySelector('#sfxVol');
+	      this.masterSlider.value=Math.round(this.masterValue*100);this.musicSlider.value=Math.round(this.musicValue*100);this.sfxSlider.value=Math.round(this.sfxValue*100);
+	      for(const [slider,key,field] of [[this.masterSlider,'doomMaster','masterValue'],[this.musicSlider,'doomMusic','musicValue'],[this.sfxSlider,'doomSfx','sfxValue']]) slider.oninput=()=>{this[field]=slider.value/100;try{localStorage.setItem(key,slider.value)}catch{}this.applyVolumes();this.showVolumes()};
+	      this.button.onclick=async()=>{try{if(!this.ready||!this.ctx||this.ctx.state!=='running')await this.activate();else{this.muted=!this.muted;this.applyVolumes();this.setState(this.muted?'MUTED':'LIVE',!this.muted)}}catch{}};
+	      this.showVolumes();this.setState('LOCKED',false);
+	    }
+	    showVolumes(){document.querySelector('#masterOut').value=`${this.masterSlider.value}%`;document.querySelector('#musicOut').value=`${this.musicSlider.value}%`;document.querySelector('#sfxOut').value=`${this.sfxSlider.value}%`}
+	    setState(text,on=false){this.label.value=text;this.button.textContent=on?'AUDIO ON':text.includes('LOADING')?'AUDIO…':'AUDIO';this.button.classList.toggle('ready',on);this.button.setAttribute('aria-pressed',on?'true':'false')}
+	    createContext(){
+	      const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw new Error('UNSUPPORTED');try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch{}
+	      this.ctx=new AC({latencyHint:'interactive'});this.masterGain=this.ctx.createGain();this.sfxGain=this.ctx.createGain();this.musicGain=this.ctx.createGain();this.sfxGain.connect(this.masterGain);this.musicGain.connect(this.masterGain);this.masterGain.connect(this.ctx.destination);this.ctx.onstatechange=()=>{if(this.ready&&this.ctx.state!=='running')this.setState('TAP AUDIO',false)};this.applyVolumes();this.prime();
+	    }
+	    prime(){if(!this.ctx)return;try{const source=this.ctx.createBufferSource();source.buffer=this.ctx.createBuffer(1,1,this.ctx.sampleRate);source.connect(this.ctx.destination);source.start(0)}catch{}}
+	    async ensureRunning(){
+	      if(!this.ctx)this.createContext();try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch{}this.prime();if(this.ctx.state!=='running'){let timer;try{await Promise.race([this.ctx.resume(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('TAP AUDIO')),1600)})])}finally{clearTimeout(timer)}}if(this.ctx.state!=='running')throw new Error('TAP AUDIO');this.prime();
+	    }
+	    async activate(){if(!this.ready)return this.enable();const resync=this.backgrounded;await this.ensureRunning();this.backgrounded=false;this.setState(this.muted?'MUTED':'LIVE',!this.muted);if(resync&&this.desiredMusic&&!this.desiredMusic.paused){this.stopMusic();this.startMusic()}else if(!this.muted&&this.desiredMusic&&!this.desiredMusic.paused&&!this.music)this.startMusic()}
+	    background(){if(!this.ready||!this.ctx)return;this.backgrounded=true;this.setState('TAP AUDIO',false);if(this.ctx.state==='running')this.ctx.suspend().catch(()=>{})}
+	    foreground(){if(!this.ready||!this.ctx)return;if(this.backgrounded||this.ctx.state!=='running')this.setState('TAP AUDIO',false);else if(!this.muted&&this.desiredMusic&&!this.desiredMusic.paused&&!this.music)this.startMusic()}
+	    applyVolumes(){
+	      if(!this.ctx)return;const t=this.ctx.currentTime;
+	      this.masterGain.gain.setTargetAtTime(this.muted?0:this.masterValue,t,.01);
+	      this.sfxGain.gain.setTargetAtTime(this.sfxValue,t,.01);
+	      this.musicGain.gain.setTargetAtTime(this.musicValue*this.gameMusicVolume/127,t,.01);
+	    }
+	    async fetchPart(start,end){
+	      let error;for(let attempt=0;attempt<3;attempt++){try{const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),1800);let r,buffer;try{r=await fetch(AUDIO_URL,{headers:{Range:`bytes=${start}-${end}`},cache:'no-store',signal:controller.signal});if(!r.ok)throw new Error(r.status===404?'FLASH AUDIO PACK':'AUDIO RANGE');buffer=await r.arrayBuffer()}finally{clearTimeout(timeout)}if(r.status!==200&&(r.status!==206||buffer.byteLength!==end-start+1))throw new Error('AUDIO SHORT READ');return{buffer,status:r.status}}catch(e){error=e;if(e.message==='FLASH AUDIO PACK')break;if(attempt<2)await new Promise(ok=>setTimeout(ok,80*(attempt+1)))}}throw new Error(error?.message==='FLASH AUDIO PACK'?'FLASH AUDIO PACK':'AUDIO LINK')
+	    }
+	    async fetchRange(start,end){
+	      const total=end-start+1,step=8192,parts=[];let received=0;
+	      for(let at=start;at<=end;at+=step){const last=Math.min(end,at+step-1),part=await this.fetchPart(at,last),b=part.buffer;if(part.status===200){if(b.byteLength<end+1)throw new Error('AUDIO SHORT READ');return b.slice(start,end+1)}parts.push(new Uint8Array(b));received+=b.byteLength;await new Promise(ok=>setTimeout(ok,0))}
+	      if(received!==total)throw new Error('AUDIO SHORT READ');const joined=new Uint8Array(total);let offset=0;for(const part of parts){joined.set(part,offset);offset+=part.byteLength}return joined.buffer;
+	    }
+	    async loadAssets(){
+	      let head=await this.fetchRange(0,2303),v=new DataView(head);if(v.getUint32(0,false)!==0x44574150||v.getUint16(4,true)!==1)throw new Error('AUDIO PACK VERSION');
+	      const ns=v.getUint16(6,true),nm=v.getUint16(8,true),es=v.getUint16(10,true),tableBytes=v.getUint32(12,true);if(head.byteLength<tableBytes){head=await this.fetchRange(0,tableBytes-1);v=new DataView(head)}
+	      this.sfxEntries=Array.from({length:ns},(_,i)=>this.entry(v,16+i*es));this.musicEntries=Array.from({length:nm},(_,i)=>this.entry(v,16+(ns+i)*es));
+	    }
+	    entry(v,o){return{offset:v.getUint32(o,true),length:v.getUint32(o+4,true),rate:v.getUint32(o+8,true),extra:v.getUint32(o+12,true)}}
+	    async enable(){
+	      if(this.loading){await this.ensureRunning();return this.loading}try{await this.ensureRunning()}catch(e){this.setState(e.message||'TAP AUDIO');throw e}this.setState('STARTING AUDIO');this.loading=this.loadAssets().then(()=>{this.ready=true;this.setState('LIVE',true);if(this.desiredMusic&&!this.desiredMusic.paused)this.startMusic()}).catch(e=>{this.setState(e.message||'AUDIO ERROR');this.loading=null;throw e});return this.loading;
+	    }
+	    async loadSfx(id){
+	      if(this.sfx[id])return this.sfx[id];if(this.sfxLoads[id])return this.sfxLoads[id];const e=this.sfxEntries?.[id];if(!e?.length)throw new Error('SFX MISSING');this.sfxLoads[id]=this.fetchRange(e.offset,e.offset+e.length-1).then(data=>{const raw=new Uint8Array(data),buffer=this.ctx.createBuffer(1,e.extra,e.rate),dst=buffer.getChannelData(0);for(let i=0;i<dst.length;i++)dst[i]=(raw[i]-128)/128;this.sfx[id]=buffer;return buffer}).finally(()=>this.sfxLoads[id]=null);return this.sfxLoads[id]
+	    }
+	    stopChannel(ch){this.pendingChannels[ch]=null;const c=this.channels[ch];if(!c)return;try{c.source.onended=null;c.source.stop()}catch{}this.channels[ch]=null}
+	    startSfx(ch,id,vol,sep,pitch){
+	      if(!this.ready||this.ctx.state!=='running')return;this.stopChannel(ch);const pending={id,vol,sep,pitch};this.pendingChannels[ch]=pending;this.loadSfx(id).then(buffer=>{if(this.pendingChannels[ch]!==pending||this.ctx.state!=='running')return;const source=this.ctx.createBufferSource(),left=this.ctx.createGain(),right=this.ctx.createGain(),merge=this.ctx.createChannelMerger(2);source.buffer=buffer;source.playbackRate.value=Math.max(1,pending.pitch)/127;source.connect(left);source.connect(right);left.connect(merge,0,0);right.connect(merge,0,1);merge.connect(this.sfxGain);const c={source,left,right,vol:pending.vol,sep:pending.sep};this.pendingChannels[ch]=null;this.channels[ch]=c;this.setPan(c,c.vol,c.sep,false);source.onended=()=>{if(this.channels[ch]===c)this.channels[ch]=null};source.start()}).catch(()=>{if(this.pendingChannels[ch]===pending)this.pendingChannels[ch]=null});
+	    }
+	    setPan(c,vol,sep,smooth=true){c.vol=vol;c.sep=sep;const l=Math.max(0,Math.min(255,((254-sep)*vol)/127))/255,r=Math.max(0,Math.min(255,(sep*vol)/127))/255,t=this.ctx.currentTime;if(smooth){c.left.gain.setTargetAtTime(l,t,.008);c.right.gain.setTargetAtTime(r,t,.008)}else{c.left.gain.value=l;c.right.gain.value=r}}
+	    stopMusic(){this.musicToken++;if(this.music){try{this.music.onended=null;this.music.stop()}catch{}this.music=null}this.musicBuffer=null}
+	    decode(encoded){return new Promise((resolve,reject)=>{let done=false,timer=setTimeout(()=>bad(new Error('DECODE TIMEOUT')),15000),ok=value=>{if(!done){done=true;clearTimeout(timer);resolve(value)}},bad=error=>{if(!done){done=true;clearTimeout(timer);reject(error)}};try{const result=this.ctx.decodeAudioData(encoded.slice(0),ok,bad);if(result?.then)result.then(ok,bad)}catch(e){bad(e)}})}
+	    async startMusic(){
+	      const wanted=this.desiredMusic;if(!this.ready||!wanted||wanted.paused)return;if(this.ctx.state!=='running'){this.setState('TAP AUDIO');return}const e=this.musicEntries?.[wanted.id];if(!e?.length){this.setState('TRACK MISSING');return}const token=++this.musicToken;this.setState('MUSIC LOADING',true);try{const encoded=await this.fetchRange(e.offset,e.offset+e.length-1),buffer=await this.decode(encoded);if(token!==this.musicToken||this.desiredMusic!==wanted)return;if(this.music){try{this.music.stop()}catch{}}const source=this.ctx.createBufferSource();source.buffer=buffer;source.loop=wanted.loop;source.connect(this.musicGain);const advanced=wanted.paused?0:performance.now()-wanted.received,offset=((wanted.elapsed+advanced)/1000)%buffer.duration;source.start(0,offset);source.onended=()=>{if(this.music===source)this.music=null};this.music=source;this.musicBuffer=buffer;this.musicStartedAt=this.ctx.currentTime-offset;this.setState(this.muted?'MUTED':'LIVE',!this.muted)}catch(e){if(token===this.musicToken)this.setState('MUSIC FORMAT')}
+	    }
+	    reset(){for(let i=0;i<8;i++)this.stopChannel(i);this.stopMusic();this.desiredMusic=null}
+	    handle(data){
+	      if(!(data instanceof ArrayBuffer))return;const b=new Uint8Array(data);if(b[0]!==0xda)return;switch(b[1]){
+	        case 0:this.reset();break;
+	        case 1:this.startSfx(b[2],b[3],b[4],b[5],b[6]);break;
+	        case 2:this.stopChannel(b[2]);break;
+	        case 3:{const c=this.channels[b[2]],p=this.pendingChannels[b[2]];if(c)this.setPan(c,b[3],b[4]);else if(p){p.vol=b[3];p.sep=b[4]}break}
+	        case 4:{const elapsed=(b[5]|b[6]<<8|b[7]<<16|b[8]<<24)>>>0;this.gameMusicVolume=b[4];this.applyVolumes();this.desiredMusic={id:b[2],loop:!!b[3],elapsed,received:performance.now(),paused:false};this.startMusic();break}
+	        case 5:this.stopMusic();this.desiredMusic=null;break;
+	        case 6:if(this.desiredMusic){this.desiredMusic.paused=true;if(this.music&&this.musicBuffer){this.desiredMusic.elapsed=((this.ctx.currentTime-this.musicStartedAt)%this.musicBuffer.duration)*1000;try{this.music.stop()}catch{}this.music=null}}break;
+	        case 7:if(this.desiredMusic){this.desiredMusic.paused=false;this.desiredMusic.received=performance.now();this.startMusic()}break;
+	        case 8:this.gameMusicVolume=b[2];this.applyVolumes();break;
+	      }
+	    }
+	  }
+	  const audio=new DoomAudio();
+	  addEventListener('pointerdown',e=>{if(e.target!==audio.button)audio.activate().catch(()=>{})},{capture:true});
+	  addEventListener('keydown',()=>audio.activate().catch(()=>{}),{capture:true});
+	  const combined=()=>keyboard|touch|gamepad;
+  function transmit(force=false){
+    if(!ws||ws.readyState!==1){last=-1;ensureControlLink();return}
+    const mask=combined(); if(!force&&mask===last)return; last=mask;
+    const b=new ArrayBuffer(4);new DataView(b).setUint32(0,mask,true);try{ws.send(b);if(!unackedSince)unackedSince=Date.now()}catch{ws.close()}
+  }
+  function clearInputs(send=false){
+    keyboard=touch=gamepad=0;counts.fill(0);pointers.clear();
+    document.querySelectorAll('.active').forEach(x=>x.classList.remove('active'));
+    last=-1;if(send)transmit(true);
+  }
+  function scheduleReconnect(delay=retry){
+    if(reconnectTimer)return;reconnectTimer=setTimeout(()=>{reconnectTimer=0;connect()},delay)
+  }
+  function ensureControlLink(){
+    if(!ws||ws.readyState>1){retry=100;scheduleReconnect(0)}
+  }
+  function connect(){
+    if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=0}const epoch=++connectionEpoch,socket=new WebSocket(`ws://${location.host}/ws`);ws=socket;socket.binaryType='arraybuffer';
+	    socket.onopen=()=>{if(ws!==socket||epoch!==connectionEpoch)return;retry=100;unackedSince=0;live.classList.add('on');state.textContent='CONTROL LINK';last=-1;transmit(true)};
+	    socket.onmessage=e=>{if(ws!==socket)return;const b=e.data instanceof ArrayBuffer?new Uint8Array(e.data):null;if(b?.[0]===0xac){unackedSince=0;return}audio.handle(e.data)};
+    socket.onclose=()=>{if(ws!==socket||epoch!==connectionEpoch)return;ws=null;unackedSince=0;clearInputs(false);live.classList.remove('on');state.textContent='RECONNECTING';scheduleReconnect(retry);retry=Math.min(1000,Math.ceil(retry*1.5))};
+    socket.onerror=()=>{if(ws===socket)socket.close()};
+  }
+  function touchBit(bit,down,id,el){
+    if(down){ensureControlLink();if(pointers.has(id))return;pointers.set(id,bit);if(++counts[bit]===1)touch|=B(bit);el.classList.add('active');el.setPointerCapture?.(id);if(haptics)navigator.vibrate?.(8)}
+    else{bit=pointers.get(id);if(bit===undefined)return;pointers.delete(id);if(counts[bit]&&--counts[bit]===0){touch&=~B(bit);document.querySelectorAll(`[data-bit="${bit}"]`).forEach(x=>x.classList.remove('active'))}}
+    transmit();
+  }
+  document.querySelectorAll('[data-bit]').forEach(el=>{
+    const bit=+el.dataset.bit;
+    el.addEventListener('pointerdown',e=>{e.preventDefault();touchBit(bit,true,e.pointerId,el)});
+    for(const name of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(name,e=>{e.preventDefault();touchBit(bit,false,e.pointerId,el)});
+  });
+  for(const name of ['pointerup','pointercancel'])addEventListener(name,e=>touchBit(0,false,e.pointerId,e.target),true);
+  addEventListener('pointermove',e=>{if(pointers.has(e.pointerId)&&e.buttons===0)touchBit(0,false,e.pointerId,e.target)},true);
+  addEventListener('touchcancel',()=>clearInputs(true),{passive:true});
+  addEventListener('touchend',e=>{if(!e.touches.length&&pointers.size)clearInputs(true)},{passive:true});
+  for(const name of ['pagehide','freeze'])addEventListener(name,()=>clearInputs(true));
+  for(const name of ['contextmenu','dragstart'])addEventListener(name,e=>{e.preventDefault();clearInputs(true)});
+  const keys={ArrowUp:0,KeyW:0,ArrowDown:1,KeyS:1,ArrowLeft:2,KeyA:2,ArrowRight:3,KeyD:3,ControlLeft:4,ControlRight:4,Space:5,ShiftLeft:6,ShiftRight:6,Enter:7,Escape:8,Tab:9,AltLeft:10,AltRight:10,Digit1:11,Digit2:12,Digit3:13,Digit4:14,Digit5:15,Digit6:16,Digit7:17};
+  addEventListener('keydown',e=>{const bit=keys[e.code];if(bit===undefined)return;e.preventDefault();keyboard|=B(bit);transmit()});
+  addEventListener('keyup',e=>{const bit=keys[e.code];if(bit===undefined)return;e.preventDefault();keyboard&=~B(bit);transmit()});
+  addEventListener('blur',()=>clearInputs(true));
+	  document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs(true);audio.background()}else audio.foreground()});
+	  addEventListener('pageshow',()=>{retry=100;ensureControlLink()});
+	  addEventListener('online',()=>{retry=100;ensureControlLink()});
+  function pollPad(){
+    const p=navigator.getGamepads?.()[0];let m=0;
+    if(p){const x=p.axes[0]||0,y=p.axes[1]||0;if(y<-deadzone)m|=B(0);if(y>deadzone)m|=B(1);if(x<-deadzone)m|=B(2);if(x>deadzone)m|=B(3);if(p.buttons[0]?.pressed)m|=B(4);if(p.buttons[1]?.pressed)m|=B(5);if(p.buttons[4]?.pressed)m|=B(6);if(p.buttons[8]?.pressed)m|=B(9);if(p.buttons[9]?.pressed)m|=B(8);if(p.buttons[12]?.pressed)m|=B(0);if(p.buttons[13]?.pressed)m|=B(1);if(p.buttons[14]?.pressed)m|=B(2);if(p.buttons[15]?.pressed)m|=B(3)}
+    if(m!==gamepad){gamepad=m;transmit()}requestAnimationFrame(pollPad)
+  }
+  setInterval(()=>{if(!document.hidden)transmit(true)},100);
+  /* Only age an actually outstanding input frame. Audio range transfers can
+   * briefly delay an ACK on mobile Safari; 1.8 s avoids false reconnects while
+   * the independent 1.2 s firmware input lease still prevents stuck motion. */
+  setInterval(()=>{if(ws?.readyState===1&&unackedSince&&Date.now()-unackedSince>1800){state.textContent='LINK STALLED';ws.close()}},250);
+  let statusBusy=false;
+  async function pollStatus(){if(statusBusy||document.hidden)return;statusBusy=true;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),900);try{const s=await(await fetch('/api/status',{cache:'no-store',signal:controller.signal})).json();stats.textContent=s.fidget?`HORDE · ${s.kills} KILLS · ${s.weapon}`:`${s.fps} Hz · heap ${Math.round(s.heap/1024)} KiB · block ${Math.round(s.largest/1024)} KiB · ${s.version}`}catch{}finally{clearTimeout(timeout);statusBusy=false}}
+  pollStatus();setInterval(pollStatus,5000);
+  const panel=document.querySelector('#panel'),bright=document.querySelector('#bright'),rotate=document.querySelector('#rotate'),dead=document.querySelector('#dead'),haptic=document.querySelector('#haptic');
+  try{dead.value=localStorage.getItem('deadzone')||35;haptic.checked=localStorage.getItem('haptics')!=='0'}catch{}deadzone=dead.value/100;haptics=haptic.checked;
+  const showValues=()=>{document.querySelector('#brightOut').value=`${bright.value}%`;document.querySelector('#deadOut').value=`${dead.value}%`};showValues();
+	  document.querySelector('#gear').onclick=async()=>{clearInputs(true);panel.hidden=false;try{const s=await(await fetch('/api/settings',{cache:'no-store'})).json();bright.value=s.brightness;rotate.checked=!!s.rotated;showValues()}catch{}};
+  document.querySelector('#close').onclick=()=>panel.hidden=true;
+  bright.oninput=showValues;bright.onchange=async()=>{try{await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({brightness:+bright.value})})}catch{}};
+  rotate.onchange=async()=>{try{await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rotated:rotate.checked})})}catch{}};
+  dead.oninput=()=>{deadzone=dead.value/100;showValues();try{localStorage.setItem('deadzone',dead.value)}catch{}};
+  haptic.onchange=()=>{haptics=haptic.checked;try{localStorage.setItem('haptics',haptics?'1':'0')}catch{}};
+  const cheatsPanel=document.querySelector('#cheatsPanel'),cheatResult=document.querySelector('#cheatResult');
+  async function runCheat(code,button){
+    clearInputs(true);cheatResult.textContent=`SENDING ${code.toUpperCase()}…`;if(button)button.disabled=true;
+    try{const r=await fetch('/api/cheat',{method:'POST',headers:{'Content-Type':'text/plain'},body:code});if(!r.ok)throw new Error(await r.text());cheatResult.textContent=`QUEUED ${code.toUpperCase()}`}
+    catch(e){cheatResult.textContent=`FAILED · ${e.message||'CONTROL LINK'}`}
+    finally{if(button)button.disabled=false}
+  }
+  document.querySelector('#cheats').onclick=()=>{clearInputs(true);cheatResult.textContent='';cheatsPanel.hidden=false};
+  document.querySelector('#closeCheats').onclick=()=>cheatsPanel.hidden=true;
+  document.querySelectorAll('[data-cheat]').forEach(el=>el.onclick=()=>runCheat(el.dataset.cheat,el));
+  document.querySelector('#warp').onclick=e=>runCheat(`idclev${document.querySelector('#warpEpisode').value}${document.querySelector('#warpMap').value}`,e.currentTarget);
+  document.querySelector('#music').onclick=e=>runCheat(`idmus${document.querySelector('#musicEpisode').value}${document.querySelector('#musicMap').value}`,e.currentTarget);
+	  const full=document.querySelector('#full');if(!document.documentElement.requestFullscreen)full.hidden=true;else full.onclick=()=>document.documentElement.requestFullscreen();
+  connect();pollPad();
+})();
+</script>
+</body>
+</html>

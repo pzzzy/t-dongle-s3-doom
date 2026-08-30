@@ -1,0 +1,70 @@
+name: Hardware or firmware bug
+description: Report a reproducible problem with the T-Dongle-S3 port
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach WAD, WHD, or extracted game/audio data. Security issues belong in a private vulnerability report.
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version or commit
+      placeholder: v1.4.0 or full commit SHA
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware and power source
+      placeholder: LilyGO T-Dongle-S3 revision, USB host/supply
+    validations:
+      required: true
+  - type: input
+    id: wad
+    attributes:
+      label: WAD edition and hash
+      description: Identify it without uploading it.
+      placeholder: Registered DOOM 1.9, SHA-256 …
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: Numbered, minimal steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and serial log
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Regression?
+      options:
+        - Unknown
+        - Yes, an earlier release worked
+        - No, it has never worked
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I did not include proprietary game data.
+          required: true

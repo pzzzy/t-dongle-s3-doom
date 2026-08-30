@@ -74,6 +74,10 @@
 
 #include "g_game.h"
 
+#ifdef ESP_PLATFORM
+#include "esp_fidget.h"
+#endif
+
 #if USE_WHD
 #include "tiny_huff.h"
 #include "picodoom.h"
@@ -864,7 +868,14 @@ boolean G_Responder (event_t* ev)
 	    (ev->type == ev_mouse && ev->data1) || 
 	    (ev->type == ev_joystick && ev->data1) ) 
 	{ 
+#if defined(ESP_PLATFORM)
+            // A full 320x200 menu is not legible on the 160x80 panel. Treat
+            // any attract-loop control as "play": start E1M1, then accept
+            // normal movement/fire/use input from the following tic onward.
+            G_DeferedInitNew(gameskill, 1, 1, false);
+#else
 	    M_StartControlPanel (); 
+#endif
 	    return true; 
 	} 
 	return false; 
@@ -968,6 +979,10 @@ void G_Ticker (void)
     int		i;
     int		buf; 
     ticcmd_t*	cmd;
+
+#ifdef ESP_PLATFORM
+    esp_fidget_pre_game_ticker();
+#endif
 
     // do player reborns if needed
     for (i=0 ; i<MAXPLAYERS ; i++) 

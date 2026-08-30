@@ -84,6 +84,12 @@ extern pre_wipe_state_t pre_wipe_state;
 void V_BeginPatchList(vpatchlist_t *patchlist);
 void V_EndPatchList(void);
 void V_DrawPatchList(const vpatchlist_t *patchlist);
+void V_DrawPatchListScaled(const vpatchlist_t *patchlist, pixel_t *buffer,
+                           int stride, int dest_width, int dest_height,
+                           int source_width, int source_height);
+void V_DrawPatchListToBuffer(const vpatchlist_t *patchlist, pixel_t *buffer,
+                             int stride, int origin_y, int clip_top,
+                             int clip_bottom);
 extern uint8_t vpatch_clip_top, vpatch_clip_bottom;
 #endif
 void V_DrawPatch(int x, int y, vpatch_handle_large_t patch);
@@ -147,4 +153,3 @@ void V_LoadXlaTable(void);
 void V_DrawMouseSpeedBox(int speed);
 
 #endif
-

@@ -137,7 +137,7 @@ template<typename S, typename H> struct huffman_encoding {
                     classify_by_length(node->zero, length + 1);
                     classify_by_length(node->one, length + 1);
                 } else {
-                    symbol_indexes_and_lengths.template emplace_back(node->symbol_index, length);
+                    symbol_indexes_and_lengths.emplace_back(node->symbol_index, length);
                     if (length >= length_counts.size()) length_counts.resize(length+1);
                     length_counts[length]++;
                 }
@@ -635,7 +635,7 @@ template<typename BI> std::vector<std::pair<uint8_t, int>> decode_min_max8(BI &b
             for (uint val = min; val <= max; val++) {
                 if (bi.bit()) {
                     printf("  %d: %d bits\n", val, min_cl);
-                    symbol_lengths.template emplace_back(val, min_cl);
+                    symbol_lengths.emplace_back(val, min_cl);
                 }
             }
         } else {
@@ -647,7 +647,7 @@ template<typename BI> std::vector<std::pair<uint8_t, int>> decode_min_max8(BI &b
                         if (bi.bit()) {
                             for (uint i = 0; i <= std::min(7, max - base_val); i++) {
                                 int code_length = min_cl + bi.read(bit_count);
-                                symbol_lengths.template emplace_back(base_val + i, code_length);
+                                symbol_lengths.emplace_back(base_val + i, code_length);
                                 printf("  %d: %d bits\n", base_val + i, code_length);
                             }
                         }
@@ -655,7 +655,7 @@ template<typename BI> std::vector<std::pair<uint8_t, int>> decode_min_max8(BI &b
                         for (int i = 0; i <= std::min(7, max - base_val); i++) {
                             if (bi.bit()) {
                                 int code_length = min_cl + bi.read(bit_count);
-                                symbol_lengths.template emplace_back(base_val + i, code_length);
+                                symbol_lengths.emplace_back(base_val + i, code_length);
                                 printf("  %d: %d bits\n", base_val + i, code_length);
                             }
                         }
@@ -665,7 +665,7 @@ template<typename BI> std::vector<std::pair<uint8_t, int>> decode_min_max8(BI &b
                 for (int val = min; val <= max; val++) {
                     if (bi.bit()) {
                         int code_length = min_cl + bi.read(bit_count);
-                        symbol_lengths.template emplace_back(val, code_length);
+                        symbol_lengths.emplace_back(val, code_length);
                         printf("  %d: %d bits\n", val, code_length);
                     }
                 }

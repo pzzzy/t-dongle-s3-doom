@@ -53,7 +53,15 @@ int no_draw_psprites;
 
 
 #define MINZ                (FRACUNIT*4)
+#if defined(ESP_PLATFORM)
+// Psprite state coordinates and WAD patch offsets use the vanilla canvas,
+// independently of the compact world framebuffer dimensions.
+#define PSPRITE_SCREENWIDTH    320
+#define BASEYCENTER            100
+#else
+#define PSPRITE_SCREENWIDTH    SCREENWIDTH
 #define BASEYCENTER            (SCREENHEIGHT/2)
+#endif
 
 //void R_DrawColumn (void);
 //void R_DrawFuzzColumn (void);
@@ -415,7 +423,7 @@ void R_DrawMaskedColumn(maskedcolumn_t column) {
     dc_texturemid = basetexturemid;
 #else
     if (column.real_id >= 0) {
-        panic_unsupported(); // handled earlier in r_segs.
+        I_Error("unexpected masked column in WHD renderer"); // handled earlier in r_segs.
 //        topscreen = sprtopscreen;
 //        bottomscreen = topscreen + spryscale * column.height;
 //
@@ -853,7 +861,7 @@ void R_DrawPSprite(pspdef_t *psp) {
     flip = (boolean) spriteframe_unrotated_flipped(sprframe);
 
     // calculate edges of the shape
-    tx = psp->sx - (SCREENWIDTH / 2) * FRACUNIT;
+    tx = psp->sx - (PSPRITE_SCREENWIDTH / 2) * FRACUNIT;
 
     tx -= sprite_offset(lump);
     x1 = (centerxfrac + FixedMul(tx, pspritescale)) >> FRACBITS;

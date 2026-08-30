@@ -41,6 +41,9 @@
 
 #if USE_WHD
 
+static int vpatch_dest_stride = SCREENWIDTH;
+static int vpatch_dest_origin_y;
+
 #include "doom/r_data.h"
 
 static_assert(VPATCH_NAME_INVALID == 0, "");
@@ -174,23 +177,30 @@ void V_EndPatchList(void) {
     vpatchlist = 0;
 }
 
+static void V_InitSharedPalettes(void)
+{
+    if (shared_palette8[0]) return;
+    for (int i = 0; i < NUM_SHARED_PALETTES; i++) {
+        patch_t *patch = resolve_vpatch_handle(vpatch_for_shared_palette[i]);
+        assert(patch);
+        assert(vpatch_has_shared_palette(patch));
+        assert(vpatch_colorcount(patch));
+        shared_palette8[i] = vpatch_palette(patch);
+    }
+}
+
 #pragma GCC push_options
 #if PICO_ON_DEVICE
 #pragma GCC optimize("O3")
 #endif
 
 void V_DrawPatchList(const vpatchlist_t *patchlist) {
-    if (!shared_palette8[0]) {
-        for (int i = 0; i < NUM_SHARED_PALETTES; i++) {
-            patch_t *patch = resolve_vpatch_handle(vpatch_for_shared_palette[i]);
-            assert(patch);
-            assert(vpatch_has_shared_palette(patch));
-            assert(vpatch_colorcount(patch));
-            shared_palette8[i] = vpatch_palette(patch);
-        }
-    }
+    V_InitSharedPalettes();
     for (int l = 1; l < patchlist[0].header.size; l++) {
-        uint8_t *orig = dest_screen + (patchlist[l].entry.y) * SCREENWIDTH + patchlist[l].entry.x;
+        uint8_t *orig = dest_screen
+                + ((int)patchlist[l].entry.y - vpatch_dest_origin_y)
+                  * vpatch_dest_stride
+                + patchlist[l].entry.x;
         const patch_t *patch = resolve_vpatch_handle(patchlist[l].entry.patch_handle);
         const uint8_t *pal;
         if (!vpatch_has_shared_palette(patch)) {
@@ -204,7 +214,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
         int h0 = vpatch_height(patch);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        int skip_top;
+        int skip_top = 0;
 #pragma GCC diagnostic pop
         int type = vpatch_type(patch);
         if (patchlist[l].entry.y + h0 > vpatch_clip_bottom) {
@@ -223,7 +233,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
         int h = h0;
         switch (type) {
             case vp4_runs_clipped:
-                for(;skip_top--; desttop += SCREENWIDTH) {
+                for(;skip_top--; desttop += vpatch_dest_stride) {
                     uint8_t gap;
                     int p = 0;
                     while (0xff != (gap = *data++)) {
@@ -243,7 +253,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 }
                 // fall thru
             case vp4_runs:
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     uint8_t *p = desttop;
                     uint8_t *pend = desttop + w;
                     uint8_t gap;
@@ -265,10 +275,10 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 break;
             case vp4_alpha_clipped:
                 data += ((w + 1) / 2) * skip_top;
-                desttop += SCREENWIDTH * skip_top;
+                desttop += vpatch_dest_stride * skip_top;
                 // fallthru
             case vp4_alpha:
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     uint8_t *p = desttop;
                     for (int i = 0; i < w / 2; i++) {
                         uint v = *data++;
@@ -283,7 +293,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 }
                 break;
             case vp4_solid:
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     uint8_t *p = desttop;
                     for (int i = 0; i < w / 2; i++) {
                         uint v = *data++;
@@ -301,7 +311,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 // todo implement this (perhaps needed for multi player?)
                 continue;
             case vp6_runs:
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     uint8_t *p = desttop;
                     uint8_t *pend = desttop + w;
                     uint8_t gap;
@@ -339,7 +349,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 }
                 break;
             case vp8_runs:
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     uint8_t *p = desttop;
                     uint8_t *pend = desttop + w;
                     uint8_t gap;
@@ -358,7 +368,7 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 data += 3 * skip_top;
                 // fall thru
             case vp_border: {
-                for (; h > 0; h--, desttop += SCREENWIDTH) {
+                for (; h > 0; h--, desttop += vpatch_dest_stride) {
                     desttop[0] = data[0];
                     for (int i = 1; i < w - 1; i++) desttop[i] = data[1];
                     desttop[w - 1] = data[2];
@@ -381,10 +391,174 @@ void V_DrawPatchList(const vpatchlist_t *patchlist) {
                 for (int i = 0; i < repeat * w; i++) {
                     desttop[w + i] = desttop[i];
                 }
-                desttop += SCREENWIDTH;
+                desttop += vpatch_dest_stride;
             }
         }
     }
+}
+
+// Decode one row of the compact, row-major WHD vpatch format. Transparent
+// pixels are returned as -1, otherwise values are PLAYPAL indexes. This is a
+// deliberately cold path used for menus on displays smaller than the vanilla
+// coordinate system.
+static boolean V_DecodePatchRow(const patch_t *patch, int wanted,
+                                int16_t *row)
+{
+    const int width = vpatch_width(patch);
+    const int height = vpatch_height(patch);
+    if ((unsigned)wanted >= (unsigned)height || width <= 0
+        || width > WHD_PATCH_MAX_WIDTH)
+        return false;
+
+    const uint8_t *palette;
+    if (vpatch_has_shared_palette(patch)) {
+        const unsigned shared = vpatch_shared_palette(patch);
+        if (shared >= NUM_SHARED_PALETTES || !shared_palette8[shared])
+            return false;
+        palette = shared_palette8[shared];
+    } else {
+        palette = vpatch_palette(patch);
+    }
+    const uint8_t *data = vpatch_data(patch);
+    const int type = vpatch_type(patch);
+
+    for (int y = 0; y <= wanted; ++y) {
+        const boolean emit = y == wanted;
+        if (emit)
+            for (int x = 0; x < width; ++x) row[x] = -1;
+
+        if (type == vp4_runs || type == vp6_runs || type == vp8_runs) {
+            int x = 0;
+            for (;;) {
+                const uint8_t gap = *data++;
+                if (gap == 0xff) break;
+                if (gap > width - x) return false;
+                x += gap;
+                const int length = *data++;
+                if (length > width - x) return false;
+                if (type == vp4_runs) {
+                    for (int i = 0; i < length; i += 2) {
+                        const uint8_t packed = *data++;
+                        if (emit) {
+                            row[x + i] = palette[packed & 15];
+                            if (i + 1 < length)
+                                row[x + i + 1] = palette[packed >> 4];
+                        }
+                    }
+                } else if (type == vp6_runs) {
+                    const int bytes = (length * 6 + 7) >> 3;
+                    if (emit) {
+                        for (int i = 0; i < length; ++i) {
+                            const int bit = i * 6;
+                            uint16_t packed = data[bit >> 3];
+                            if ((bit & 7) > 2) packed |= data[(bit >> 3) + 1] << 8;
+                            row[x + i] = palette[(packed >> (bit & 7)) & 63];
+                        }
+                    }
+                    data += bytes;
+                } else {
+                    if (emit)
+                        for (int i = 0; i < length; ++i)
+                            row[x + i] = palette[data[i]];
+                    data += length;
+                }
+                x += length;
+                // A run reaching the right edge has no 0xff terminator in
+                // WHD. Continuing would consume the next row as run data.
+                if (x == width) break;
+            }
+        } else if (type == vp4_alpha || type == vp4_solid) {
+            for (int x = 0; x < width; x += 2) {
+                const uint8_t packed = *data++;
+                if (emit) {
+                    const int low = packed & 15;
+                    const int high = packed >> 4;
+                    if (type == vp4_solid || low) row[x] = palette[low];
+                    if (x + 1 < width && (type == vp4_solid || high))
+                        row[x + 1] = palette[high];
+                }
+            }
+        } else if (type == vp_border) {
+            if (emit) {
+                row[0] = data[0];
+                for (int x = 1; x < width - 1; ++x) row[x] = data[1];
+                row[width - 1] = data[2];
+            }
+            data += 3;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+void V_DrawPatchListScaled(const vpatchlist_t *patchlist, pixel_t *buffer,
+                           int stride, int dest_width, int dest_height,
+                           int source_width, int source_height)
+{
+    V_InitSharedPalettes();
+    int16_t row[WHD_PATCH_MAX_WIDTH];
+
+    for (int list_index = 1; list_index < patchlist[0].header.size;
+         ++list_index) {
+        const vpatchlist_t *entry = &patchlist[list_index];
+        const patch_t *patch = resolve_vpatch_handle(entry->entry.patch_handle);
+        const int patch_width = vpatch_width(patch);
+        const int patch_height = vpatch_height(patch);
+        const int repeat_width = entry->entry.patch_handle == VPATCH_M_THERMM
+                ? patch_width - 1 : patch_width;
+        const int total_width = patch_width
+                + entry->entry.repeat * repeat_width;
+        const int left = entry->entry.x;
+        const int top = entry->entry.y;
+
+        int first_y = (top * dest_height + source_height - 1) / source_height;
+        int last_y = ((top + patch_height) * dest_height
+                      + source_height - 1) / source_height;
+        if (first_y < 0) first_y = 0;
+        if (last_y > dest_height) last_y = dest_height;
+
+        for (int dest_y = first_y; dest_y < last_y; ++dest_y) {
+            const int source_y = dest_y * source_height / dest_height - top;
+            if (!V_DecodePatchRow(patch, source_y, row)) continue;
+
+            int first_x = (left * dest_width + source_width - 1) / source_width;
+            int last_x = ((left + total_width) * dest_width
+                          + source_width - 1) / source_width;
+            if (first_x < 0) first_x = 0;
+            if (last_x > dest_width) last_x = dest_width;
+            pixel_t *dest = buffer + dest_y * stride;
+
+            for (int dest_x = first_x; dest_x < last_x; ++dest_x) {
+                int source_x = dest_x * source_width / dest_width - left;
+                if ((unsigned)source_x >= (unsigned)total_width) continue;
+                if (source_x >= patch_width)
+                    source_x = (source_x - patch_width) % repeat_width;
+                if (row[source_x] >= 0) dest[dest_x] = row[source_x];
+            }
+        }
+    }
+}
+
+void V_DrawPatchListToBuffer(const vpatchlist_t *patchlist, pixel_t *buffer,
+                             int stride, int origin_y, int clip_top,
+                             int clip_bottom) {
+    pixel_t *saved_dest = dest_screen;
+    int saved_stride = vpatch_dest_stride;
+    int saved_origin = vpatch_dest_origin_y;
+    uint8_t saved_top = vpatch_clip_top;
+    uint8_t saved_bottom = vpatch_clip_bottom;
+    dest_screen = buffer;
+    vpatch_dest_stride = stride;
+    vpatch_dest_origin_y = origin_y;
+    vpatch_clip_top = clip_top;
+    vpatch_clip_bottom = clip_bottom;
+    V_DrawPatchList(patchlist);
+    dest_screen = saved_dest;
+    vpatch_dest_stride = saved_stride;
+    vpatch_dest_origin_y = saved_origin;
+    vpatch_clip_top = saved_top;
+    vpatch_clip_bottom = saved_bottom;
 }
 
 #pragma GCC pop_options
@@ -421,10 +595,12 @@ void V_DrawPatchN(int x, int y, vpatch_handle_large_t patch_handle, int repeat) 
 #endif
 
 #ifdef RANGECHECK
+    int canvas_width = vpatchlist ? 320 : SCREENWIDTH;
+    int canvas_height = vpatchlist ? 200 : SCREENHEIGHT;
     if (x < 0
-        || x + vpatch_width(patch) > SCREENWIDTH
+        || x + vpatch_width(patch) > canvas_width
         || y < 0
-        || y + vpatch_height(patch) > SCREENHEIGHT) {
+        || y + vpatch_height(patch) > canvas_height) {
         I_Error("Bad V_DrawPatch");
     }
 #endif
@@ -480,7 +656,7 @@ void V_DrawPatchFlipped(int x, int y, vpatch_handle_large_t patch_handle) {
     const patch_t *patch = resolve_vpatch_handle(patch_handle);
 #endif
 #if USE_WHD
-    panic_unsupported();
+    I_Error("V_DrawPatchFlipped is unsupported in the WHD renderer");
 #endif
     int count;
     int col;

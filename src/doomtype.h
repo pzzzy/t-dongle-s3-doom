@@ -99,6 +99,10 @@ extern int strnicmp(const char *a, const char *b, size_t len);
 
 #include <inttypes.h>
 
+#if defined(ESP_PLATFORM)
+typedef unsigned int uint;
+#endif
+
 #if defined(__cplusplus) || defined(__bool_true_false_are_defined)
 
 // Use builtin bool type with C++.
@@ -254,4 +258,3 @@ typedef void *shortptr_t;
 #endif
 
 #endif
-

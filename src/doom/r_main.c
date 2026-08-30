@@ -984,6 +984,12 @@ void R_ExecuteSetViewSize(void) {
 
     setsizeneeded = false;
 
+    #if defined(ESP_PLATFORM)
+    // The T-Dongle port renders the 3-D view directly at the LCD's native
+    // width. Vanilla's block-size formula is hard-wired to a 320px canvas.
+    scaledviewwidth = SCREENWIDTH;
+    viewheight = MAIN_VIEWHEIGHT;
+    #else
     if (setblocks == 11) {
         scaledviewwidth = SCREENWIDTH;
         viewheight = SCREENHEIGHT;
@@ -991,6 +997,7 @@ void R_ExecuteSetViewSize(void) {
         scaledviewwidth = setblocks * 32;
         viewheight = (setblocks * 168 / 10) & ~7;
     }
+    #endif
 
     detailshift = setdetail;
     viewwidth = scaledviewwidth >> detailshift;
@@ -1021,9 +1028,17 @@ void R_ExecuteSetViewSize(void) {
 
     R_InitTextureMapping();
 
-    // psprite scales
+    // Player-weapon patches and their offsets remain in Doom's original
+    // 320x200 coordinate system even when the world framebuffer is narrower.
+    // Scale that source space explicitly on the T-Dongle; using SCREENWIDTH
+    // here made psprites twice size and projected their resting pose offscreen.
+#if defined(ESP_PLATFORM)
+    pspritescale = FRACUNIT * viewwidth / 320;
+    pspriteiscale = FRACUNIT * 320 / viewwidth;
+#else
     pspritescale = FRACUNIT * viewwidth / SCREENWIDTH;
     pspriteiscale = FRACUNIT * SCREENWIDTH / viewwidth;
+#endif
 
     // thing clipping
     for (i = 0; i < viewwidth; i++)

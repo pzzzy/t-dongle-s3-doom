@@ -1,0 +1,185 @@
+set(DOOM_ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
+
+set(DOOM_CORE_SOURCES
+    "${DOOM_ROOT}/src/d_event.c"
+    "${DOOM_ROOT}/src/d_iwad.c"
+    "${DOOM_ROOT}/src/d_loop.c"
+    "${DOOM_ROOT}/src/d_mode.c"
+    "${DOOM_ROOT}/src/deh_str.c"
+    "${DOOM_ROOT}/src/m_argv.c"
+    "${DOOM_ROOT}/src/m_bbox.c"
+    "${DOOM_ROOT}/src/m_cheat.c"
+    "${DOOM_ROOT}/src/m_config.c"
+    "${DOOM_ROOT}/src/m_controls.c"
+    "${DOOM_ROOT}/src/m_fixed.c"
+    "${DOOM_ROOT}/src/m_misc.c"
+    "${DOOM_ROOT}/src/net_client.c"
+    "${DOOM_ROOT}/src/sha1.c"
+    "${DOOM_ROOT}/src/tables.c"
+    "${DOOM_ROOT}/src/v_diskicon.c"
+    "${DOOM_ROOT}/src/v_video.c"
+    "${DOOM_ROOT}/src/w_checksum.c"
+    "${DOOM_ROOT}/src/w_file.c"
+    "${DOOM_ROOT}/src/w_file_memory.c"
+    "${DOOM_ROOT}/src/w_main.c"
+    "${DOOM_ROOT}/src/w_merge.c"
+    "${DOOM_ROOT}/src/w_wad.c"
+    "${DOOM_ROOT}/src/z_zone.c"
+    "${DOOM_ROOT}/src/tiny_huff.c"
+    "${DOOM_ROOT}/src/musx_decoder.c"
+    "${DOOM_ROOT}/src/image_decoder.c"
+    "${DOOM_ROOT}/src/pd_render.cpp"
+)
+
+file(GLOB DOOM_GAME_SOURCES "${DOOM_ROOT}/src/doom/*.c")
+
+idf_component_register(
+    SRCS
+        "app_main.c"
+        "esp_system.c"
+        "esp_timer.c"
+        "esp_video.c"
+        "esp_input.c"
+        "esp_fidget.c"
+        "esp_usb_hid.c"
+        "esp_web_control.c"
+        "esp_sound_stubs.c"
+        "esp_sound_web.c"
+        "esp_sound_pdm.c"
+        ${DOOM_CORE_SOURCES}
+        ${DOOM_GAME_SOURCES}
+    INCLUDE_DIRS
+        "."
+        "compat"
+        "${DOOM_ROOT}/src"
+        "${DOOM_ROOT}/src/doom"
+        "${DOOM_ROOT}/src/whd_gen"
+    REQUIRES esp_timer esp_app_format esp_driver_spi esp_driver_gpio esp_driver_ledc esp_driver_i2s esp_driver_usb_serial_jtag
+             esp_partition esp_wifi esp_event esp_netif esp_http_server nvs_flash
+    EMBED_FILES
+        "web/index.html"
+)
+
+target_compile_options(${COMPONENT_LIB} PRIVATE
+    -Os
+    -ffunction-sections
+    -fdata-sections
+    -fno-exceptions
+    -fno-rtti
+    -Wno-unused-function
+    -Wno-unused-variable
+    -Wno-unused-but-set-variable
+    -Wno-unused-but-set-parameter
+    -Wno-format-truncation
+    -Wno-error=format
+    -Wno-error=maybe-uninitialized
+    -Wno-error=stringop-overread
+)
+
+target_compile_definitions(${COMPONENT_LIB} PRIVATE
+    SCREENWIDTH=160
+    # Exactly half of vanilla's 320x168 play area. Keep PicoDoom's logical
+    # 32-row status region below it to preserve split-framebuffer invariants;
+    # CPU1 fits the complete 160x84 viewport above the physical 16-row HUD.
+    SCREENHEIGHT=116
+    MAIN_VIEWHEIGHT=84
+    HAVE_DECL_STRCASECMP=1
+    HAVE_DECL_STRNCASECMP=1
+    HAVE_DIRENT_H=0
+    PICO_BUILD=1
+    PICO_ON_DEVICE=0
+    PICO_NO_HARDWARE=0
+    LIB_PICO_STDLIB=0
+    LIB_PICO_STDIO=0
+    USE_WHD=1
+    USE_MEMORY_WAD=1
+    USE_MEMMAP_ONLY=1
+    WHD_SUPER_TINY=0
+    DOOM_TINY=1
+    DOOM_SMALL=1
+    DOOM_ONLY=1
+    DOOM_CONST=1
+    SHRINK_MOBJ=1
+    NO_RDRAW=1
+    NO_USE_ARGS=1
+    NO_FILE_ACCESS=1
+    NO_USE_SAVE_CONFIG=1
+    NO_USE_LOAD=1
+    NO_USE_SAVE=1
+    NO_USE_NET=1
+    USE_PICO_NET=0
+    NO_USE_JOYSTICK=1
+    NO_USE_MOUSE=1
+    NO_USE_DEH=1
+    NO_USE_CHECKSUM=1
+    NO_USE_RELOAD=1
+    USE_SINGLE_IWAD=1
+    NO_USE_WIPE=1
+    NO_USE_MUSIC_PACKS=1
+    NO_USE_TIMIDITY=1
+    NO_USE_GUS=1
+    NO_USE_LIBSAMPLERATE=1
+    USE_FLAT_MAX_256=1
+    USE_LIGHTMAP_INDEXES=1
+    USE_ERASE_FRAME=1
+    NO_DRAW_MID=1
+    NO_DRAW_TOP=1
+    NO_DRAW_BOTTOM=1
+    NO_DRAW_MASKED=1
+    NO_DRAW_SKY=1
+    NO_DRAW_SPRITES=1
+    NO_DRAW_PSPRITES=1
+    NO_VISPLANE_GUTS=1
+    NO_VISPLANE_CACHES=1
+    NO_DRAWSEGS=1
+    NO_VISSPRITES=1
+    NO_MASKED_FLOOR_CLIP=1
+    PD_DRAW_COLUMNS=1
+    PD_DRAW_MARKERS=1
+    PD_DRAW_PLANES=1
+    PD_SCALE_SORT=1
+    PD_CLIP_WALLS=1
+    PD_QUANTIZE=1
+    PD_SANITY=1
+    PD_COLUMNS=1
+    PICO_DOOM=1
+    PICODOOM_RENDER_NEWHOPE=1
+    NO_USE_DS_COLORMAP=1
+    NO_USE_DC_COLORMAP=1
+    USE_READONLY_MMAP=1
+    USE_RAW_MAPNODE=1
+    USE_RAW_MAPVERTEX=1
+    USE_RAW_MAPSEG=1
+    USE_RAW_MAPLINEDEF=1
+    USE_RAW_MAPTHING=1
+    USE_INDEX_LINEBUFFER=1
+    NO_USE_ZLIGHT=1
+    NO_Z_ZONE_ID=1
+    Z_MALOOC_EXTRA_DATA=1
+    USE_THINKER_POOL=1
+    NO_INTERCEPTS_OVERRUN=1
+    TEMP_IMMUTABLE_DISABLED=1
+    USE_CONST_SFX=1
+    USE_CONST_MUSIC=1
+    NO_DEMO_RECORDING=1
+    PICO_NO_TIMING_DEMO=1
+    NO_USE_EXIT=1
+    SAVE_COMPRESSED=1
+    LOAD_COMPRESSED=1
+    USE_VANILLA_KEYBOARD_MAPPING_ONLY=1
+    NO_USE_LOADING_DISK=1
+    NO_Z_MALLOC_USER_PTR=1
+    FIXED_SCREENWIDTH=0
+    FLOOR_CEILING_CLIP_8BIT=1
+    USE_MUSX=1
+    MUSX_COMPRESSED=1
+    NO_SCREENSHOT=1
+    NO_USE_BOUND_CONFIG=1
+    USE_FPS=1
+    PICO_DEBUG_MALLOC=1
+    NO_IERROR=0
+    NO_ZONE_DEBUG=1
+    NO_USE_STATE_MISC=1
+    MERGE_DISTSCALE0_INTO_VIEWCOSSINANGLE=1
+    FORCE_NODRAW=0
+)
