@@ -44,7 +44,7 @@ jobs:
 
       - name: Build ESP32-S3 firmware
         working-directory: esp-idf
-        run: idf.py build
+        run: . "$IDF_PATH/export.sh" && idf.py build
 
       - name: Enforce release partition limits
         run: |
