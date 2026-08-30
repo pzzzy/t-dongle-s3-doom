@@ -96,7 +96,7 @@ invariants.
 ESP-IDF 5.3.x is supported; v5.3.5 is used by CI and the release build.
 
 ```sh
-git clone --recurse-submodules https://github.com/pzzzy/t-dongle-s3-doom.git
+git clone https://github.com/pzzzy/t-dongle-s3-doom.git
 cd t-dongle-s3-doom
 
 . /path/to/esp-idf/export.sh
