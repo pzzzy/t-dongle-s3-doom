@@ -184,8 +184,10 @@ cmake -DPICO_PLATFORM=host -DPICO_SDK_PATH=/path/to/pico-sdk -DPICO_EXTRAS_PATH=
 
 ## whd_gen
 
-`doom1.whx` is includd in this repository, otherwise you need to build `whd_gen` using the regular native build
-instructions above.
+`doom1.whx` was present in an earlier repository revision but has been removed
+from the current source tree. It remains in historical Git commits; this removal
+does not rewrite history. Build `whd_gen` using the regular native build
+instructions above and generate a WHX from your own legally obtained IWAD.
 
 To generate a WHX file (you must use this to convert DOOM1.WAD to run on a 2M Raspberry Pi Pico)
 

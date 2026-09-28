@@ -64,6 +64,10 @@ GTAGS
 /HTML/
 *.midx
 *.midx.z
+/cmake-*/
+
+# Game-data-derived assets and generated packs are private, user-created data.
+*.whx
 *.wad
 *.whd
-/cmake-*/
+*.pack

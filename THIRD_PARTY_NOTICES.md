@@ -5,8 +5,13 @@ several compatible open-source licenses. Source-file notices remain
 authoritative.
 
 - **DOOM source release** — id Software; GNU General Public License version 2
-  or later. DOOM is a trademark of id Software/Bethesda/ZeniMax. No commercial
-  game data is included by this project.
+  or later. DOOM is a trademark of id Software/Bethesda/ZeniMax. The current
+  source tree and inspected `v1.4.0` firmware archive contain no WAD, WHX, WHD,
+  or generated audio pack. A commercial-data-derived `doom1.whx` was present in
+  earlier Git history and remains retrievable from those commits; removing it
+  from the current branch does not rewrite history or invalidate existing
+  clones and forks. No commercial game data should be redistributed from this
+  repository.
 - **Chocolate Doom** — Chocolate Doom contributors; generally GPL-2.0-or-later.
   See `README-chocolate.md` and notices in `src/`.
 - **RP2040 Doom** — Graham Sanderson and contributors. Engine-derived portions

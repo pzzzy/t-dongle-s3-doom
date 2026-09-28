@@ -39,9 +39,14 @@ no heap loss, and eight real browser reloads restored controls in 136–300 ms.
 - For browser music: `mus2mid`, libADLMIDI's `adlmidiplay`, and FFmpeg/ffprobe.
 
 > [!IMPORTANT]
-> This repository and its releases contain no commercial DOOM game data. You
-> must supply your own IWAD. Do not open an issue asking for WAD, WHD, or audio
-> pack downloads.
+> The current source tree and the inspected `v1.4.0` firmware archive do not
+> include a WAD, WHX, WHD, or generated audio pack. The firmware archive
+> contains firmware binaries, Python helper tools, license/readme files, and a
+> source manifest. However, a commercial-data-derived `doom1.whx` was committed
+> in earlier repository history. Removing it from the current branch does not
+> remove that blob from existing Git history, clones, or forks; no history
+> rewrite is being performed. You must supply your own legally obtained IWAD.
+> Do not open an issue asking for WAD, WHX, WHD, or audio-pack downloads.
 
 ## Install a release
 
@@ -134,7 +139,8 @@ derived from Chocolate Doom and id Software's released DOOM source. The ESP32-S3
 backend, low-resolution renderer, input broker, web control/audio system, and
 fidget arena are maintained here. Trademark and game-data rights remain with
 their respective owners; this project is not affiliated with id Software,
-Bethesda, ZeniMax, LilyGO, or Espressif.
+Bethesda, ZeniMax, LilyGO, or Espressif. The GPL license for code does not grant
+rights to commercial DOOM game data or assets.
 
 ## Contributing and security
 
@@ -145,4 +151,7 @@ reporting instead of a public issue.
 
 Most engine-derived code is licensed under GPL-2.0-or-later; independently
 licensed upstream components retain their original terms. See [LICENSE](LICENSE)
-and the notices in the source tree.
+and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Copyright/game-data
+concerns are not security vulnerabilities; see [SUPPORT.md](SUPPORT.md) for
+reporting guidance. The historical blob is a repository-history issue, not
+permission to redistribute the file.
